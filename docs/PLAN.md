@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 0 — Foundations. Next step: 0.2 (git init + first commit).**
+> **Current status: Phase 1 — Core API 101. Next step: 1.1 (scaffold `apps/core-api`).**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -97,11 +97,11 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 
 - [x] **0.0 Plan docs created** — `docs/PLAN.md`, `docs/DECISIONS.md`, `AGENTS.md`, `README.md`.
 - [x] **0.1 Install & verify tools** · *Build:* install Git, Node 24 LTS, pnpm (`corepack enable`), Docker Desktop (WSL2 backend). *Verify:* `git --version`, `node -v`, `pnpm -v`, `docker --version`, `docker compose version` all respond. *Done:* a checklist in the README.
-- [ ] **0.2 `git init` + first commit** · *Build:* `.gitignore` (node_modules, .env, dist, .next), `.editorconfig`. *Learn:* what we ignore and why (secrets never in git). *Done:* first commit on `main`.
-- [ ] **0.3 Review `AGENTS.md` together** · *Build:* small wording tweaks if needed. *Learn:* how you and I collaborate in this repo. *Done:* you're happy with the working agreement.
-- [ ] **0.4 pnpm workspace skeleton** · *Build:* `pnpm-workspace.yaml`, root `package.json` with placeholder `dev`/`test`/`lint` scripts. *Learn:* workspaces, root vs app scripts. *Done:* `pnpm install` runs clean.
-- [ ] **0.5 Postgres via Docker** · *Build:* `docker-compose.yml` (`postgres:18`, healthcheck, named volume, port 5432). *Learn:* containers vs local installs; volumes. *Verify:* `docker compose up -d` → `docker exec` psql `SELECT version();`. *Done:* DB reachable, survives restart.
-- [ ] **0.6 README quickstart** · *Build:* real quickstart section. *Done:* a fresh person could boot the repo.
+- [x] **0.2 `git init` + first commit** · *Build:* `.gitignore` (node_modules, .env, dist, .next), `.editorconfig`. *Learn:* what we ignore and why (secrets never in git). *Done:* first commit on `main`.
+- [x] **0.3 Review `AGENTS.md` together** · *Build:* small wording tweaks if needed. *Learn:* how you and I collaborate in this repo. *Done:* you're happy with the working agreement.
+- [x] **0.4 pnpm workspace skeleton** · *Build:* `pnpm-workspace.yaml`, root `package.json` with placeholder `dev`/`test`/`lint` scripts. *Learn:* workspaces, root vs app scripts. *Done:* `pnpm install` runs clean.
+- [x] **0.5 Postgres via Docker** · *Build:* `docker-compose.yml` (`postgres:18`, healthcheck, named volume, port 5432). *Learn:* containers vs local installs; volumes. *Verify:* `docker compose up -d` → `docker exec` psql `SELECT version();`. *Done:* DB reachable, survives restart.
+- [x] **0.6 README quickstart** · *Build:* real quickstart section. *Done:* a fresh person could boot the repo.
 
 **Phase 0 done when:** one command boots Postgres; repo history started; plan docs readable.
 
@@ -260,3 +260,8 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 |---|---|---|---|
 | 2026-10-18 | 0 | 0.0 | Plan, decisions log, AGENTS.md, README created |
 | 2026-10-18 | 0 | 0.1 | Tools verified: Node 24.22.0 active (nvm), pnpm 11.18.0, Git 2.51.0, Docker 29.6.1 + Compose v5.2.0. README toolchain checklist; decisions D23–D24 |
+| 2026-10-18 | 0 | 0.2 | Repo initialized on `main`; `.gitignore`, `.editorconfig`, `.gitattributes`; first commit `9e1e5e5` |
+| 2026-10-18 | 0 | 0.3 | AGENTS.md reviewed; commands section labeled by availability |
+| 2026-10-18 | 0 | 0.4 | pnpm workspace skeleton: `pnpm-workspace.yaml`, root `package.json` (+ lockfile) |
+| 2026-10-18 | 0 | 0.5 | Postgres 18 via docker compose on port 5433; persistence verified; decision D25 |
+| 2026-10-18 | 0 | 0.6 | README quickstart real. **Phase 0 complete** |

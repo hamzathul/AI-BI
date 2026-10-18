@@ -1,0 +1,3 @@
+# Keep text files LF everywhere — repository and working tree — no matter a
+# machine's core.autocrlf setting. (.editorconfig keeps editors in line too.)
+* text=auto eol=lf

@@ -1,0 +1,35 @@
+# Ignored on purpose: secrets, generated output, personal files.
+
+# Dependencies — reinstalled from package.json + pnpm-lock.yaml (the lockfile IS committed)
+node_modules/
+
+# Build output — regenerated from source
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Test coverage reports
+coverage/
+
+# Secrets — NEVER committed; only the .env.example template is
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / IDE — personal files stay personal
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS clutter (Windows + macOS)
+Thumbs.db
+Desktop.ini
+.DS_Store

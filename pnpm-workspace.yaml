@@ -1,0 +1,4 @@
+# Workspace members — apps and shared packages appear here as the project grows.
+packages:
+  - "apps/*"
+  - "packages/*"

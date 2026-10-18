@@ -39,11 +39,17 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 - `apps/ai-service` (Phase 6): Python + uv + FastAPI + Pydantic v2 + LangGraph; LLM SDK only in `llm.py`
 - `sample-data/`: Acme HR + sales seed for the practice database
 
-## Commands (fill in as they exist)
+## Commands
 
 ```bash
-docker compose up -d          # local Postgres
-pnpm install                  # workspace install
+# Available today
+nvm use 24.22.0                    # activate the project's Node (see README §Toolchain)
+
+# Arrives with the workspace (steps 0.4–0.5)
+pnpm install                       # workspace install
+docker compose up -d               # local Postgres (container aibi-postgres)
+
+# Arrives with the apps (Phases 1–3)
 pnpm --filter core-api start:dev   # api on :3001
 pnpm --filter core-api test        # api unit tests
 pnpm --filter web dev              # web on :3000

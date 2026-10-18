@@ -13,11 +13,12 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 - Explain *why* before *what*. Plain language over jargon. Short code, readable over clever.
 - They review the code after each step. Surface the files changed and what to look at.
 - If a step grows beyond ~1-3 files or ~a session, split it and say so.
+- **They commit, always.** After reviewing, the user stages and commits themselves — the agent never runs `git add`/`git commit`. A finished step ends with a handover: files changed, what to review, and a ready-to-run commit command.
 
 ## Working agreement (mandatory)
 
 1. **One step at a time** from `docs/PLAN.md`. Never run ahead multiple steps.
-2. Each step: explain plan → build minimally → run tests → summarize for review → commit (only after user is okay) → tick the checkbox in PLAN.md → append to the Progress log.
+2. Each step: explain plan → build minimally → run tests → update PLAN.md (tick + progress log, included in the review bundle) → summarize for review → **the user reviews, stages, and commits themselves** — the agent never runs `git add`/`git commit`.
 3. **Tests are part of done.** No red tests, no "later".
 4. New decision? Append to `docs/DECISIONS.md` with date + status. New library? That's a decision — log it.
 5. Commit style: conventional commits (`feat:`, `fix:`, `chore:`, `test:`, `docs:`). Small commits per step.

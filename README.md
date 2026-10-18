@@ -29,22 +29,27 @@ Verified on the dev machine 2026-10-18 (step 0.1). Run these — all must respon
 
 Notes:
 - Node versions are managed with **nvm-windows** (D23): `nvm list` shows what's installed, `nvm use 24.22.0` activates one. On some Windows setups switching needs an admin terminal (symlink rule) — if `nvm use` refuses, reopen the terminal as Administrator.
-- pnpm is an npm-global install (D24); its exact version will be pinned in `package.json` at workspace setup.
+- pnpm is an npm-global install (D24); its exact version is pinned in `package.json` (`packageManager`) since the workspace skeleton landed.
 
 ## Quickstart
 
-> Being built in Phase 0–1. It will become:
+Phase 0 is complete: toolchain, pnpm workspace, and local Postgres. The apps arrive next (Phases 1 & 3).
 
 ```bash
-# 1. Prerequisites — see "Toolchain" above
-# 2. Start local Postgres
+# 1. Verify tools — see "Toolchain" above
+# 2. Start local Postgres 18 (container aibi-postgres)
 docker compose up -d
 
-# 3. Install & run
+# 3. Install the workspace
 pnpm install
-pnpm --filter core-api start:dev   # API  → http://localhost:3001
-pnpm --filter web dev              # Web  → http://localhost:3000
+
+# 4. Sanity-check the database
+docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 ```
+
+Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container.
+
+> Coming next: `pnpm --filter core-api start:dev` (Phase 1) and `pnpm --filter web dev` (Phase 3).
 
 ## Repo layout (target)
 

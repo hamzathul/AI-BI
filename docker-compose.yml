@@ -1,0 +1,27 @@
+# Local development Postgres 18 — boot with: docker compose up -d
+# Host port 5433 (5432 is occupied by another project's container on this machine).
+name: ai-bi
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: aibi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres # local dev only — real credentials never live in git
+      POSTGRES_DB: aibi
+    ports:
+      - "5433:5432"
+    volumes:
+      # PG18 image: PGDATA lives under /var/lib/postgresql/<major>/docker,
+      # so the volume mounts at the parent (older majors used .../data).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aibi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

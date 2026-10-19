@@ -33,7 +33,7 @@ Notes:
 
 ## Quickstart
 
-Phase 0 is complete: toolchain, pnpm workspace, and local Postgres. The apps arrive next (Phases 1 & 3).
+Phase 0 is complete (toolchain, workspace, local Postgres) and Phase 1 has started (the core API). The web app arrives in Phase 3.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -45,11 +45,15 @@ pnpm install
 
 # 4. Sanity-check the database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
+
+# 5. Run the API (second terminal)
+pnpm --filter core-api start:dev
+curl http://localhost:3001/api/health
 ```
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container.
 
-> Coming next: `pnpm --filter core-api start:dev` (Phase 1) and `pnpm --filter web dev` (Phase 3).
+> Next: `pnpm --filter web dev` (Phase 3).
 
 ## Repo layout (target)
 

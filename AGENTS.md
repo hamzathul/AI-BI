@@ -35,7 +35,7 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 ## Stack snapshot (details in PLAN.md §5)
 
 - Runtime: Node 24 LTS, pnpm workspaces, Docker (Postgres 18)
-- `apps/core-api`: NestJS 12 + Prisma + Jest/supertest, Swagger at `/api/docs`
+- `apps/core-api`: NestJS 12 (ESM) + Prisma + Vitest/supertest, Swagger at `/api/docs`
 - `apps/web`: Next.js 16.2 App Router + Tailwind + shadcn/ui + TanStack Query + RHF/Zod + ECharts (themed)
 - `apps/ai-service` (Phase 6): Python + uv + FastAPI + Pydantic v2 + LangGraph; LLM SDK only in `llm.py`
 - `sample-data/`: Acme HR + sales seed for the practice database
@@ -47,10 +47,11 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 nvm use 24.22.0                    # activate the project's Node (see README §Toolchain)
 pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
+pnpm --filter core-api start:dev   # api on :3001 (GET /api/health)
+pnpm --filter core-api test        # api unit tests (Vitest)
+pnpm --filter core-api test:e2e    # api e2e tests (Vitest + supertest)
 
-# Arrives with the apps (Phases 1–3)
-pnpm --filter core-api start:dev   # api on :3001
-pnpm --filter core-api test        # api unit tests
+# Arrives with the web app (Phase 3)
 pnpm --filter web dev              # web on :3000
 ```
 

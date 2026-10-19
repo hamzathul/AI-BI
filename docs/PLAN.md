@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 1 — Core API 101. Next step: 1.1 (scaffold `apps/core-api`).**
+> **Current status: Phase 1 — Core API 101. Next step: 1.2 (config & validated environment).**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -37,8 +37,8 @@ Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 
 | Layer | Tool | What it covers |
 |---|---|---|
-| core-api unit | Jest | compiler (spec→SQL), SQL guard, type mapping, pure logic |
-| core-api integration | Jest + supertest + Docker Postgres | connectors, introspection, endpoints, migrations |
+| core-api unit | Vitest | compiler (spec→SQL), SQL guard, type mapping, pure logic |
+| core-api integration | Vitest + supertest + Docker Postgres | connectors, introspection, endpoints, migrations |
 | web unit | Vitest (+ Testing Library when needed) | chart adapters, hooks, form logic |
 | web e2e | Playwright | user flows (connection → sync → chart → dashboard → chat) |
 | ai-service | pytest | graph nodes with mocked LLM; API tests |
@@ -60,7 +60,7 @@ Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 | Charts | **ECharts** (latest) + custom theme | behind `<ChartRenderer/>` |
 | Dashboard grid | **react-grid-layout** | |
 | API contract | NestJS **Swagger/OpenAPI** → `openapi-typescript` types | no hand-written duplicates |
-| API tests | Jest + supertest | |
+| API tests | Vitest + supertest | |
 | Web tests | Vitest + **Playwright** | |
 | AI service (Phase 6) | Python + **uv**, **FastAPI**, **Pydantic v2**, **LangGraph 1.x**, ruff, pytest | provider SDK via own `llm.py` boundary |
 
@@ -112,11 +112,11 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** a running, tested, documented skeleton API — you understand its anatomy.
 **You'll learn:** NestJS modules/controllers/services/DTOs, dependency injection, Prisma migrations, e2e tests, OpenAPI.
 
-- [ ] **1.1 Scaffold `apps/core-api`** · *Build:* Nest CLI app, strict TS, `GET /health`. *Learn:* `main.ts`, `app.module.ts`, modules ↔ controllers ↔ services. *Done:* dev server runs on :3001, health responds.
+- [x] **1.1 Scaffold `apps/core-api`** · *Build:* Nest CLI app (Nest 12, ESM), strict TS, `GET /api/health`. *Learn:* `main.ts`, `app.module.ts`, modules ↔ controllers ↔ services. *Done:* dev server runs on :3001, health responds.
 - [ ] **1.2 Config & environment** · *Build:* `.env` + `.env.example`, ConfigModule, validated env (Zod). *Learn:* why config is validated at boot. *Done:* missing env → clear error at startup.
 - [ ] **1.3 Errors & logging conventions** · *Build:* global exception filter (consistent error shape) + request logging interceptor. *Done:* one error format everywhere; each request logged with method/path/status/ms.
 - [ ] **1.4 Prisma + first migration** · *Build:* `Connection` model, migration `0001`, `PrismaService` + module. *Learn:* schema → migration → client workflow. *Done:* table exists in Docker PG; `prisma studio` shows it.
-- [ ] **1.5 Test setup** · *Build:* Jest unit example + supertest e2e for `/health`; scripts `test`, `test:e2e`. *Done:* `pnpm --filter core-api test` green.
+- [ ] **1.5 Test setup** · *Build:* make the generated Vitest setup intentional — unit + e2e scripts, one example each. *Done:* `pnpm --filter core-api test` and `test:e2e` green.
 - [ ] **1.6 OpenAPI** · *Build:* Swagger module at `/api/docs`. *Learn:* contract-first thinking. *Done:* DTOs visible in the docs UI.
 
 **Phase 1 done when:** `start:dev` runs, tests green, `/api/docs` live, migration applied.
@@ -265,3 +265,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-18 | 0 | 0.4 | pnpm workspace skeleton: `pnpm-workspace.yaml`, root `package.json` (+ lockfile) |
 | 2026-10-18 | 0 | 0.5 | Postgres 18 via docker compose on port 5433; persistence verified; decision D25 |
 | 2026-10-18 | 0 | 0.6 | README quickstart real. **Phase 0 complete** |
+| 2026-10-19 | 1 | 1.1 | Nest 12 scaffold in `apps/core-api` (ESM + Vitest, D26); `GET /api/health` on :3001 (D27); unit + e2e green |

@@ -8,6 +8,9 @@ async function bootstrap() {
 
   configureApp(app);
 
+  // SIGINT/SIGTERM → Nest closes the app → PrismaService disconnects (2.1c).
+  app.enableShutdownHooks();
+
   const config = app.get(ConfigService);
   await app.listen(config.getOrThrow<number>('PORT'));
 }

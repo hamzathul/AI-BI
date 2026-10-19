@@ -40,13 +40,16 @@ Phase 0 is complete (toolchain, workspace, local Postgres) and Phase 1 has start
 # 2. Start local Postgres 18 (container aibi-postgres)
 docker compose up -d
 
-# 3. Install the workspace
+# 3. Create local env files (gitignored; .env.example is the template)
+cp apps/core-api/.env.example apps/core-api/.env
+
+# 4. Install the workspace
 pnpm install
 
-# 4. Sanity-check the database
+# 5. Sanity-check the database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 
-# 5. Run the API (second terminal)
+# 6. Run the API (second terminal)
 pnpm --filter core-api start:dev
 curl http://localhost:3001/api/health
 ```

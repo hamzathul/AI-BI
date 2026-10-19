@@ -45,6 +45,7 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 ```bash
 # Available today
 nvm use 24.22.0                    # activate the project's Node (see README §Toolchain)
+cp apps/core-api/.env.example apps/core-api/.env  # one-time local config (gitignored)
 pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
 pnpm --filter core-api start:dev   # api on :3001 (GET /api/health)

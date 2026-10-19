@@ -18,6 +18,29 @@ cp .env.example .env    # run from apps/core-api/
 Validated by Zod at boot in `src/config/env.validation.ts` (D28). A missing or
 invalid value stops the app with a clear message instead of failing later.
 
+## Errors & logging
+
+Every failure returns the same shape (D29):
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "Cannot GET /api/unknown",
+  "path": "/api/unknown",
+  "timestamp": "2026-10-19T15:07:33.019Z"
+}
+```
+
+Unhandled errors become a generic `500`; details are logged server-side, never
+returned to the client. Each request logs one line once the response finishes
+(`log` for 2xx/3xx, `warn` for 4xx, `error` for 5xx):
+
+```
+[RequestLogger] GET /api/health 200 3ms
+[RequestLogger] GET /api/unknown 404 2ms
+```
+
 ## Commands
 
 ```bash

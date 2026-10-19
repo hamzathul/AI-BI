@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 1 — Core API 101. Next step: 1.3 (errors & logging conventions).**
+> **Current status: Phase 1 — Core API 101. Next step: 1.4 (Prisma + first migration).**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -114,7 +114,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 
 - [x] **1.1 Scaffold `apps/core-api`** · *Build:* Nest CLI app (Nest 12, ESM), strict TS, `GET /api/health`. *Learn:* `main.ts`, `app.module.ts`, modules ↔ controllers ↔ services. *Done:* dev server runs on :3001, health responds.
 - [x] **1.2 Config & environment** · *Build:* `.env` + `.env.example`, ConfigModule, validated env (Zod). *Learn:* why config is validated at boot. *Done:* missing env → clear error at startup.
-- [ ] **1.3 Errors & logging conventions** · *Build:* global exception filter (consistent error shape) + request logging interceptor. *Done:* one error format everywhere; each request logged with method/path/status/ms.
+- [x] **1.3 Errors & logging conventions** · *Build:* global exception filter (consistent error shape) + request logging middleware. *Done:* one error format everywhere; each request logged with method/path/status/ms.
 - [ ] **1.4 Prisma + first migration** · *Build:* `Connection` model, migration `0001`, `PrismaService` + module. *Learn:* schema → migration → client workflow. *Done:* table exists in Docker PG; `prisma studio` shows it.
 - [ ] **1.5 Test setup** · *Build:* make the generated Vitest setup intentional — unit + e2e scripts, one example each. *Done:* `pnpm --filter core-api test` and `test:e2e` green.
 - [ ] **1.6 OpenAPI** · *Build:* Swagger module at `/api/docs`. *Learn:* contract-first thinking. *Done:* DTOs visible in the docs UI.
@@ -267,3 +267,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-18 | 0 | 0.6 | README quickstart real. **Phase 0 complete** |
 | 2026-10-19 | 1 | 1.1 | Nest 12 scaffold in `apps/core-api` (ESM + Vitest, D26); `GET /api/health` on :3001 (D27); unit + e2e green |
 | 2026-10-19 | 1 | 1.2 | `@nestjs/config` + Zod `validateEnv`; `.env`/`.env.example`; fail-fast verified (exit 1, names `DATABASE_URL`); PORT override via `process.env` verified (D28) |
+| 2026-10-19 | 1 | 1.3 | `AllExceptionsFilter` (uniform error envelope, generic 500s) + `requestLogger` middleware (method/path/status/ms; 4xx warn, 5xx error); e2e covers 404 body; D29 |

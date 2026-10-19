@@ -5,7 +5,7 @@ import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 
-describe('Health (e2e)', () => {
+describe('core-api (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -24,6 +24,21 @@ describe('Health (e2e)', () => {
       .expect(200)
       .expect((res) => {
         expect(res.body.status).toBe('ok');
+      });
+  });
+
+  it('/api/unknown (GET) returns the standard error body', () => {
+    return request(app.getHttpServer())
+      .get('/api/unknown')
+      .expect(404)
+      .expect((res) => {
+        expect(res.body).toMatchObject({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Cannot GET /api/unknown',
+          path: '/api/unknown',
+        });
+        expect(typeof res.body.timestamp).toBe('string');
       });
   });
 

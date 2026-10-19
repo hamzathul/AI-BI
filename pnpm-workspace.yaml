@@ -2,3 +2,6 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Swagger UI pulls in @scarf/scarf (optional telemetry). Never run its install script.
+allowBuilds:
+  '@scarf/scarf': false

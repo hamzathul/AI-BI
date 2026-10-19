@@ -1,6 +1,6 @@
 # AI BI — Agentic Analytics (single-company)
 
-An AI-powered analytics app: connect a PostgreSQL database, let the app introspect it, define light business semantics (metrics & dimensions), then ask questions in chat and build dashboards from validated, safely-compiled queries.
+An AI-powered analytics app: configure a PostgreSQL source database at deploy time, let the app introspect it, define light business semantics (metrics & dimensions), then ask questions in chat and build dashboards from validated, safely-compiled queries.
 
 - **Domain-agnostic**: built to handle HR, sales, operations — any tabular data.
 - **IR-first**: the AI produces a structured query spec; the backend compiles and validates the SQL. The model never decides what is safe to run.
@@ -52,9 +52,10 @@ docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 # 6. Run the API (second terminal)
 pnpm --filter core-api start:dev
 curl http://localhost:3001/api/health
+# OpenAPI docs: http://localhost:3001/api/docs
 ```
 
-Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container.
+Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database; the read-only source database (`SOURCE_DATABASE_URL`) arrives with the Acme sample data in step 2.1a.
 
 > Next: `pnpm --filter web dev` (Phase 3).
 

@@ -13,7 +13,7 @@ cp .env.example .env    # run from apps/core-api/
 |---|---|---|---|
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production` |
 | `PORT` | no | `3001` | HTTP port |
-| `DATABASE_URL` | **yes** | — | PostgreSQL connection string (app DB now, connector target later) |
+| `DATABASE_URL` | **yes** | — | App's own PostgreSQL database (Prisma). The read-only source DB (`SOURCE_DATABASE_URL`) arrives in step 2.1a |
 
 Validated by Zod at boot in `src/config/env.validation.ts` (D28). A missing or
 invalid value stops the app with a clear message instead of failing later.
@@ -56,5 +56,8 @@ pnpm --filter core-api lint         # oxlint
 | Method | Path | Response |
 |---|---|---|
 | GET | `/api/health` | `{ "status": "ok", "uptime": 12, "timestamp": "..." }` |
+| GET | `/api/docs` | Swagger UI (from controller/DTO decorators) |
+| GET | `/api/docs-json` | Generated OpenAPI document |
 
-All routes live under the `/api` global prefix (D27).
+All routes live under the `/api` global prefix (D27). Swagger is generated from
+controller and DTO decorators; the document is built lazily on first request.

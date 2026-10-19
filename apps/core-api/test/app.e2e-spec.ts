@@ -27,6 +27,21 @@ describe('core-api (e2e)', () => {
       });
   });
 
+  it('/api/docs (GET) serves the Swagger UI', () => {
+    return request(app.getHttpServer()).get('/api/docs').expect(200);
+  });
+
+  it('/api/docs-json (GET) exposes the OpenAPI document', () => {
+    return request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.info.title).toBe('AI BI API');
+        expect(res.body.paths['/api/health']).toBeDefined();
+        expect(res.body.components.schemas.HealthDto).toBeDefined();
+      });
+  });
+
   it('/api/unknown (GET) returns the standard error body', () => {
     return request(app.getHttpServer())
       .get('/api/unknown')

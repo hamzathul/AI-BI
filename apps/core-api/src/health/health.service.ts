@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common';
-
-export interface HealthStatus {
-  status: 'ok';
-  uptime: number;
-  timestamp: string;
-}
+import type { HealthDto } from './health.dto.js';
 
 @Injectable()
 export class HealthService {
-  getHealth(): HealthStatus {
+  getHealth(): HealthDto {
     return {
       status: 'ok',
       uptime: Math.round(process.uptime()),

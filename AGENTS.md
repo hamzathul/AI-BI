@@ -4,7 +4,7 @@
 
 ## What this project is
 
-A single-company AI analytics app: connect a PostgreSQL database (more connectors later), introspect it, define light business semantics (metrics/dimensions — domain-agnostic: HR, sales, ops, anything), then answer questions in chat and build dashboards from validated queries. One repo, monorepo layout, no multi-tenancy.
+A single-company AI analytics app: connect a PostgreSQL source database configured at deploy time (more connectors later), introspect it, define light business semantics (metrics/dimensions — domain-agnostic: HR, sales, ops, anything), then answer questions in chat and build dashboards from validated queries. One repo, monorepo layout, no multi-tenancy.
 
 ## Who the user is
 
@@ -27,7 +27,7 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 ## Non-negotiable boundaries
 
 - **The LLM never emits raw SQL as a primary path** — it emits a QuerySpec; the backend compiles/validates. (D9)
-- **Credentials**: encrypted at rest, never returned by APIs, never logged, never in the web app or ai-service. (D11/D12)
+- **Source credentials**: read-only, live only in env (`SOURCE_DATABASE_URL`), never returned by APIs, never logged, never in the web app or ai-service. If we ever store credentials in the app DB, encrypt at rest. (D11/D30; D12 revisit)
 - **Chart specs are renderer-agnostic** — no ECharts options persisted. (D8)
 - **core-api is the single writer** of domain data; ai-service is stateless. (D16)
 - Read-only database credentials for every connector. (D11)
@@ -35,7 +35,7 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 ## Stack snapshot (details in PLAN.md §5)
 
 - Runtime: Node 24 LTS, pnpm workspaces, Docker (Postgres 18)
-- `apps/core-api`: NestJS 12 (ESM) + Prisma + Vitest/supertest, Swagger at `/api/docs`
+- `apps/core-api`: NestJS 12 (ESM) + Prisma (arrives 2.1b) + Vitest/supertest, Swagger at `/api/docs`
 - `apps/web`: Next.js 16.2 App Router + Tailwind + shadcn/ui + TanStack Query + RHF/Zod + ECharts (themed)
 - `apps/ai-service` (Phase 6): Python + uv + FastAPI + Pydantic v2 + LangGraph; LLM SDK only in `llm.py`
 - `sample-data/`: Acme HR + sales seed for the practice database
@@ -48,7 +48,7 @@ nvm use 24.22.0                    # activate the project's Node (see README §T
 cp apps/core-api/.env.example apps/core-api/.env  # one-time local config (gitignored)
 pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
-pnpm --filter core-api start:dev   # api on :3001 (GET /api/health)
+pnpm --filter core-api start:dev   # api on :3001 (GET /api/health; docs at /api/docs)
 pnpm --filter core-api test        # api unit tests (Vitest)
 pnpm --filter core-api test:e2e    # api e2e tests (Vitest + supertest)
 

@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 1 — Core API 101. Next step: 1.4 (Prisma + first migration).**
+> **Current status: Phase 1 — Core API 101. Next step: 1.5 (Phase 1 review + test audit).**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -10,13 +10,14 @@ This is our single source of truth for *what we build, in what order, and how we
 
 ## 1. What we are building (one paragraph)
 
-A **single-company AI analytics app**: the company connects one of their databases, the app introspects it, the user defines light business semantics (metrics & dimensions — generic, works for HR, sales, operations, anything), then asks questions in chat and gets answers plus dashboards built from validated queries. The AI generates a **structured QuerySpec** (never raw SQL as the primary path); the backend compiles, validates, and executes it safely with read-only credentials. Charts are rendered by ECharts behind a **renderer-agnostic chart spec**. No multi-tenancy: one company, one (or a few) connections.
+A **single-company AI analytics app**: the company configures a PostgreSQL source database at deploy time, the app introspects it, the user defines light business semantics (metrics & dimensions — generic, works for HR, sales, operations, anything), then asks questions in chat and gets answers plus dashboards built from validated queries. The AI generates a **structured QuerySpec** (never raw SQL as the primary path); the backend compiles, validates, and executes it safely with read-only credentials. Charts are rendered by ECharts behind a **renderer-agnostic chart spec**. No multi-tenancy: one company, one source database (multiple sources deferred; D30).
 
 ## 2. Decisions that shape this plan
 
 Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 
 - **Single company deployment.** No orgs/workspaces/tenants. Simpler everywhere.
+- **Single source database, configured via env.** No connections table or in-app credential management in v0 (D30).
 - **Domain-agnostic by construction.** Sample data mixes HR *and* sales so we never bake in finance-only assumptions.
 - **Monorepo**, apps appear over time: `web` (Next.js), `core-api` (NestJS), `ai-service` (Python — arrives in Phase 6).
 - **PostgreSQL** for app data *and* as the first connector target. Docker for local infra.
@@ -40,19 +41,21 @@ Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 | core-api unit | Vitest | compiler (spec→SQL), SQL guard, type mapping, pure logic |
 | core-api integration | Vitest + supertest + Docker Postgres | connectors, introspection, endpoints, migrations |
 | web unit | Vitest (+ Testing Library when needed) | chart adapters, hooks, form logic |
-| web e2e | Playwright | user flows (connection → sync → chart → dashboard → chat) |
+| web e2e | Playwright | user flows (source → sync → chart → dashboard → chat) |
 | ai-service | pytest | graph nodes with mocked LLM; API tests |
 | AI evals | pytest runner + golden set | ~30 real questions against sample data; score tracked (Phase 6+) |
+
+> From step 2.1c onward, core-api e2e tests also need the local Docker Postgres (migrations + `PrismaService`).
 
 ## 5. Stack (versions verified at plan time, Oct 18 2026)
 
 | Area | Choice | Note |
 |---|---|---|
 | Runtime | **Node.js 24 LTS** (24.22.x) | Node 26 becomes Active LTS Oct 28 — we may switch later |
-| Package manager | **pnpm** (via corepack), workspaces | one repo, multiple apps |
+| Package manager | **pnpm 11.18** (npm-global, D24), workspaces | one repo, multiple apps |
 | Database | **PostgreSQL 18** (Docker `postgres:18`) | 19 is RC — not for us yet |
 | Core API | **NestJS 12** + TypeScript | the learning curve we tackle in Phase 1 |
-| ORM | **Prisma** (latest at install) | migrations + typed queries |
+| ORM | **Prisma 7.10.1** (pinned) | migrations + typed queries; `PrismaPg` driver adapter |
 | Frontend | **Next.js 16.2** (App Router) + TypeScript | Phase 3 |
 | UI | Tailwind CSS + **shadcn/ui** + sonner (toasts) | consistent, modern |
 | Client data | **TanStack Query v5** | server-state cache |
@@ -110,50 +113,51 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 ### Phase 1 — Core API 101 (learn NestJS) *(est. 4–6 sessions)*
 
 **Goal:** a running, tested, documented skeleton API — you understand its anatomy.
-**You'll learn:** NestJS modules/controllers/services/DTOs, dependency injection, Prisma migrations, e2e tests, OpenAPI.
+**You'll learn:** NestJS modules/controllers/services/DTOs, dependency injection, e2e tests, OpenAPI. Prisma migrations move to Phase 2 with the database work.
 
 - [x] **1.1 Scaffold `apps/core-api`** · *Build:* Nest CLI app (Nest 12, ESM), strict TS, `GET /api/health`. *Learn:* `main.ts`, `app.module.ts`, modules ↔ controllers ↔ services. *Done:* dev server runs on :3001, health responds.
 - [x] **1.2 Config & environment** · *Build:* `.env` + `.env.example`, ConfigModule, validated env (Zod). *Learn:* why config is validated at boot. *Done:* missing env → clear error at startup.
 - [x] **1.3 Errors & logging conventions** · *Build:* global exception filter (consistent error shape) + request logging middleware. *Done:* one error format everywhere; each request logged with method/path/status/ms.
-- [ ] **1.4 Prisma + first migration** · *Build:* `Connection` model, migration `0001`, `PrismaService` + module. *Learn:* schema → migration → client workflow. *Done:* table exists in Docker PG; `prisma studio` shows it.
-- [ ] **1.5 Test setup** · *Build:* make the generated Vitest setup intentional — unit + e2e scripts, one example each. *Done:* `pnpm --filter core-api test` and `test:e2e` green.
-- [ ] **1.6 OpenAPI** · *Build:* Swagger module at `/api/docs`. *Learn:* contract-first thinking. *Done:* DTOs visible in the docs UI.
+- [x] **1.4 OpenAPI** · *Build:* Swagger module at `/api/docs`; document the health response with a DTO. *Learn:* contract-first thinking; how Nest decorators become OpenAPI. *Done:* `/api/docs` live; `/api/docs-json` returns the document; DTO visible.
+- [ ] **1.5 Phase 1 review + test audit** · *Build:* walk through `main.ts`, `configure-app.ts`, filters, middleware, config, and tests; fill any test gaps; finalize the env-only plan/decision docs. *Learn:* how the pieces fit together; what unit vs e2e covers. *Done:* code reviewed, tests green, docs consistent.
 
-**Phase 1 done when:** `start:dev` runs, tests green, `/api/docs` live, migration applied.
+**Phase 1 done when:** `start:dev` runs, tests green, `/api/docs` live, code reviewed.
 
 ---
 
-### Phase 2 — PostgreSQL connector (the core of the product) *(est. 8–12 sessions — biggest phase)*
+### Phase 2 — PostgreSQL connector (the core of the product) *(est. 10–14 sessions — biggest phase)*
 
-**Goal:** connect a real database, introspect it safely, store normalized metadata, run capped read-only queries.
-**You'll learn:** Postgres internals (catalogs), connection pooling, secret handling, SQL safety fundamentals.
+**Goal:** wire Prisma to the app DB, connect a real source database, introspect it safely, store normalized metadata, run capped read-only queries.
+**You'll learn:** Prisma schema/migrations/client, Postgres internals (catalogs), pooling, env-based read-only credentials, SQL safety fundamentals.
 
-- [ ] **2.1 Sample database "Acme Inc."** · *Build:* `sample-data/seed.sql` — HR side (departments, employees, salaries) + sales side (customers, products, orders, order_items) + a read-only role `acme_reader`. Loader script. *Learn:* real-world schema patterns, read-only users. *Verify:* run 3 sample queries as `acme_reader`. *Done:* sample DB live in Docker PG.
+- [ ] **2.1a Sample database "Acme Inc."** · *Build:* `sample-data/seed.sql` — HR side (departments, employees, salaries) + sales side (customers, products, orders, order_items) + a read-only role `acme_reader`. Loader script. Add `SOURCE_DATABASE_URL` (read-only) to `.env`/`.env.example` and Zod. *Learn:* real-world schema patterns, read-only users, app DB vs source DB. *Verify:* run 3 sample queries as `acme_reader`. *Done:* sample DB live in Docker PG; app boots with both URLs.
+- [ ] **2.1b Prisma foundation + first migration** · *Build:* pin Prisma 7.10.1; `prisma.config.ts`; `SyncRun` model + migration `0001`; generated client; `prisma:*` scripts; generated-dir ignores. *Learn:* schema → migration → client workflow. *Verify:* `prisma migrate status`, `psql \d+ sync_runs`, Studio. *Done:* table exists; client generated.
+- [ ] **2.1c Prisma in Nest + integration test** · *Build:* `PrismaService` (`PrismaPg` adapter, `OnModuleDestroy`), `PrismaModule`, `enableShutdownHooks()`, e2e create/read/delete a `SyncRun`. *Learn:* DI lifecycle, graceful shutdown, integration tests. *Verify:* unit + e2e + build + lint. *Done:* green; app closes cleanly.
 - [ ] **2.2 Connector contract** · *Build:* `connectors/` — interface types (`testConnection`, `discoverSchema`, `executeQuery`), capability manifest, normalized error taxonomy (AUTH/PERMISSION/SYNTAX/TIMEOUT/…), registry. *Learn:* adapter pattern in practice. *Verify:* unit tests on registry. *Done:* interfaces frozen enough to build against.
-- [ ] **2.3 Connections API + credential encryption** · *Build:* CRUD endpoints, DTO validation, **AES-256-GCM encryption at rest** (key from env), secrets never in responses/logs. *Verify:* tests prove encryption + redaction. *Done:* connection records safe in app DB.
-- [ ] **2.4 Postgres connector: test connection** · *Build:* `pg` driver wrapper, pool management, `POST /connections/:id/test` (auth check, server version, verify read-only privileges). *Verify:* integration test vs Acme DB; wrong password → clean `AUTH` error. *Done:* green test + real error mapping.
+- [ ] **2.3 Source status API** · *Build:* `GET /api/source` returning safe metadata (database, last sync, configured flag); no host/user/password in responses or logs. *Verify:* tests prove redaction. *Done:* status endpoint works without leaking credentials.
+- [ ] **2.4 Postgres connector: test connection** · *Build:* `pg` driver wrapper, pool management, `POST /api/source/test` (auth check, server version, verify read-only privileges). *Verify:* integration test vs Acme DB; wrong password → clean `AUTH` error. *Done:* green test + real error mapping.
 - [ ] **2.5 Introspect: schemas & tables** · *Build:* catalog queries → normalized DTOs (schemas, tables, views). *Learn:* `pg_catalog` vs `information_schema`. *Done:* endpoint lists all Acme tables/views.
 - [ ] **2.6 Introspect: columns & types** · *Build:* columns, nullability, comments, **canonical type mapping** (e.g. `numeric(10,2)`, `timestamptz`). *Verify:* unit tests per PG type family. *Done:* full column metadata per table.
 - [ ] **2.7 Introspect: keys & relations** · *Build:* PK/FK extraction → relationship DTOs (the join graph the AI will use later). *Done:* FK graph correct for Acme.
-- [ ] **2.8 Metadata storage + sync** · *Build:* app tables (`db_objects`, `db_columns`, `db_relations`, `sync_runs`), full sync service, `POST /connections/:id/sync`, metadata read APIs, sync status/timestamps. *Done:* sync visible in API + browsable metadata.
+- [ ] **2.8 Metadata storage + sync** · *Build:* app tables (`db_objects`, `db_columns`, `db_relations`; `sync_runs` exists from 2.1b), full sync service, `POST /api/source/sync`, metadata read APIs, sync status/timestamps. *Done:* sync visible in API + browsable metadata.
 - [ ] **2.9 Safe query execution** · *Build:* SQL guard (single statement only, `SELECT`-only, comments/`;` rejected, keyword denylist), `statement_timeout`, **row cap 10k**, cancellation, normalized errors. *Verify:* guard unit tests (DROP/UPDATE/multi-statement rejected); integration executes aggregate query. *Done:* only safe reads can leave the API.
 - [ ] **2.10 Review gate** · Walk through Phase 2 code together; you try the endpoints in `/api/docs` yourself.
 
-**Phase 2 done when:** connection → test → sync → metadata → guarded query, all working against Acme, all tested.
+**Phase 2 done when:** source test → sync → metadata → guarded query, all working against Acme, all tested; Prisma wired to the app DB.
 
 ---
 
-### Phase 3 — Web 101 (learn Next.js) + connection UX *(est. 5–7 sessions)*
+### Phase 3 — Web 101 (learn Next.js) + source UX *(est. 5–7 sessions)*
 
 **Goal:** the whole Phase 2 flow available in the browser.
 **You'll learn:** App Router, client components, TanStack Query, forms, typed clients from OpenAPI.
 
 - [ ] **3.1 Scaffold `apps/web`** · *Build:* Next.js 16 + TS + Tailwind + shadcn init; app shell + nav; CORS with core-api; root script runs both. *Learn:* App Router layout/pages. *Done:* both apps run with one command.
-- [ ] **3.2 Typed API client** · *Build:* generate types from OpenAPI (`openapi-typescript`) + tiny `openapi-fetch` wrapper + QueryClientProvider; first hook (list connections). *Learn:* why generated types beat hand-written ones. *Done:* connections render from live API.
-- [ ] **3.3 Connections page** · *Build:* list / create / delete; React Hook Form + Zod; loading, empty, error states. *Done:* create + delete with validation feedback.
-- [ ] **3.4 Test & Sync actions** · *Build:* buttons with status polling + toasts (sonner). *Done:* connection test + sync feedback in UI.
+- [ ] **3.2 Typed API client** · *Build:* generate types from OpenAPI (`openapi-typescript`) + tiny `openapi-fetch` wrapper + QueryClientProvider; first hook (source status). *Learn:* why generated types beat hand-written ones. *Done:* source status renders from live API.
+- [ ] **3.3 Source overview page** · *Build:* read-only configured database, server version, last sync; loading, empty, error states. *Done:* page renders the env-configured source safely.
+- [ ] **3.4 Test & Sync actions** · *Build:* buttons with status polling + toasts (sonner). *Done:* source test + sync feedback in UI.
 - [ ] **3.5 Metadata browser** · *Build:* schema → table tree; column table with type/PK/FK badges. *Done:* you can explore Acme visually.
-- [ ] **3.6 Playwright setup + first e2e** · *Build:* e2e happy path: create connection → sync → see "employees" table. *Learn:* e2e vs unit; selectors that don't break. *Done:* `pnpm --filter web e2e` green.
+- [ ] **3.6 Playwright setup + first e2e** · *Build:* e2e happy path: test source → sync → see "employees" table. *Learn:* e2e vs unit; selectors that don't break. *Done:* `pnpm --filter web e2e` green.
 
 **Phase 3 done when:** browser happy path complete; e2e green; you can trace the full data flow yourself.
 
@@ -230,14 +234,14 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** safe enough for real internal use against a real database.
 
 - [ ] **8.1 Auth v0** · users + argon2 passwords + JWT sessions; guards on every route; web login page. (Single company — no orgs.)
-- [ ] **8.2 Audit log** · connection/test/sync/query/dashboard events.
+- [ ] **8.2 Audit log** · source/test/sync/query/dashboard events.
 - [ ] **8.3 Background sync + drift** · scheduled sync; schema-change flag in the metadata UI.
 - [ ] **8.4 Guardrails** · sanitize warehouse-derived text in prompts (treat as untrusted); excluded/sensitive columns per model; prompt-injection tests.
 - [ ] **8.5 Limits & observability** · rate limit, query concurrency cap, request IDs, structured logs.
 - [ ] **8.6 CI + packaging** · GitHub Actions (lint + unit + e2e + eval smoke), Dockerfiles, deploy recipe, backup/restore note.
-- [ ] **8.7 Operator docs** · how to create a read-only user, env reference, runbook.
+- [ ] **8.7 Operator docs** · how to create a read-only user, `DATABASE_URL`/`SOURCE_DATABASE_URL` env reference, runbook.
 
-**Phase 8 done when:** a colleague can clone, configure, connect their own database (read-only user), and use it.
+**Phase 8 done when:** a colleague can clone, configure their source database via env (read-only user), and use it.
 
 ---
 
@@ -251,6 +255,7 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 - Retrieval upgrade (embeddings) — only if lexical search fails at real scale.
 - Infra: Redis cache, queue (pg-boss), Arrow results, OTel, Langfuse.
 - Multi-user polish: sharing; enterprise: SSO, private networking, impersonation, on-prem agent.
+- Multiple source databases + in-app connection management (revisit D30).
 
 ---
 
@@ -268,3 +273,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-19 | 1 | 1.1 | Nest 12 scaffold in `apps/core-api` (ESM + Vitest, D26); `GET /api/health` on :3001 (D27); unit + e2e green |
 | 2026-10-19 | 1 | 1.2 | `@nestjs/config` + Zod `validateEnv`; `.env`/`.env.example`; fail-fast verified (exit 1, names `DATABASE_URL`); PORT override via `process.env` verified (D28) |
 | 2026-10-19 | 1 | 1.3 | `AllExceptionsFilter` (uniform error envelope, generic 500s) + `requestLogger` middleware (method/path/status/ms; 4xx warn, 5xx error); e2e covers 404 body; D29 |
+| 2026-10-19 | 1 | 1.4 | Swagger at `/api/docs` (lazy document factory, `useGlobalPrefix`) + `HealthDto`; e2e covers `/api/docs-json`; Prisma deferred to 2.1b/c and plan pivoted to env-only single source (D30–D32); 1.5 next |

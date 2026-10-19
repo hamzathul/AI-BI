@@ -2,6 +2,8 @@ import { validateEnv } from './env.validation.js';
 
 const validEnv = {
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/aibi',
+  SOURCE_DATABASE_URL:
+    'postgresql://acme_reader:acme_reader_dev@localhost:5433/acme',
 };
 
 describe('validateEnv', () => {
@@ -11,6 +13,7 @@ describe('validateEnv', () => {
     expect(env.NODE_ENV).toBe('development');
     expect(env.PORT).toBe(3001);
     expect(env.DATABASE_URL).toBe(validEnv.DATABASE_URL);
+    expect(env.SOURCE_DATABASE_URL).toBe(validEnv.SOURCE_DATABASE_URL);
   });
 
   it('coerces PORT from a string to a number', () => {
@@ -20,7 +23,15 @@ describe('validateEnv', () => {
   });
 
   it('rejects a missing DATABASE_URL', () => {
-    expect(() => validateEnv({})).toThrow(/DATABASE_URL/);
+    expect(() =>
+      validateEnv({ SOURCE_DATABASE_URL: validEnv.SOURCE_DATABASE_URL }),
+    ).toThrow(/DATABASE_URL/);
+  });
+
+  it('rejects a missing SOURCE_DATABASE_URL', () => {
+    expect(() => validateEnv({ DATABASE_URL: validEnv.DATABASE_URL })).toThrow(
+      /SOURCE_DATABASE_URL/,
+    );
   });
 
   it('rejects a non-numeric PORT', () => {

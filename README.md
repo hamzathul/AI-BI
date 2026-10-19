@@ -46,16 +46,19 @@ cp apps/core-api/.env.example apps/core-api/.env
 # 4. Install the workspace
 pnpm install
 
-# 5. Sanity-check the database
+# 5. Load the Acme sample source database (destructive, dev-only — re-runnable)
+pnpm db:seed
+
+# 6. Sanity-check the app database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 
-# 6. Run the API (second terminal)
+# 7. Run the API (second terminal)
 pnpm --filter core-api start:dev
 curl http://localhost:3001/api/health
 # OpenAPI docs: http://localhost:3001/api/docs
 ```
 
-Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database; the read-only source database (`SOURCE_DATABASE_URL`) arrives with the Acme sample data in step 2.1a.
+Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
 
 > Next: `pnpm --filter web dev` (Phase 3).
 

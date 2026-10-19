@@ -13,7 +13,8 @@ cp .env.example .env    # run from apps/core-api/
 |---|---|---|---|
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production` |
 | `PORT` | no | `3001` | HTTP port |
-| `DATABASE_URL` | **yes** | — | App's own PostgreSQL database (Prisma). The read-only source DB (`SOURCE_DATABASE_URL`) arrives in step 2.1a |
+| `DATABASE_URL` | **yes** | — | App's own PostgreSQL database (Prisma) |
+| `SOURCE_DATABASE_URL` | **yes** | — | Read-only source database (Acme sample; load with `pnpm db:seed`) |
 
 Validated by Zod at boot in `src/config/env.validation.ts` (D28). A missing or
 invalid value stops the app with a clear message instead of failing later.

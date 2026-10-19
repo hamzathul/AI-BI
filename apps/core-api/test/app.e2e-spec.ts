@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
@@ -25,6 +25,22 @@ describe('core-api (e2e)', () => {
       .expect((res) => {
         expect(res.body.status).toBe('ok');
       });
+  });
+
+  it('/api/health (GET) logs one line after the response finishes', async () => {
+    const logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
+
+    try {
+      await request(app.getHttpServer()).get('/api/health').expect(200);
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^GET \/api\/health 200 \d+ms$/),
+      );
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 
   it('/api/docs (GET) serves the Swagger UI', () => {

@@ -41,6 +41,17 @@ returned to the client. Each request logs one line once the response finishes
 [RequestLogger] GET /api/unknown 404 2ms
 ```
 
+## How a request flows
+
+1. `main.ts` boots Nest (`NestFactory.create(AppModule)`) and calls `configureApp(app)`.
+2. `configureApp()` sets the `/api` global prefix, attaches the request logger,
+   installs the global exception filter, and mounts Swagger at `/api/docs`.
+3. `AppModule` loads `ConfigModule` (global, Zod-validated env) and `HealthModule`.
+4. A request is routed to a controller, which delegates to a service.
+5. Every response is logged once by the middleware (`finish` event). Every error
+   exits through `AllExceptionsFilter`: `HttpException`s keep their status and
+   message; anything else becomes a generic 500 and is logged with its stack.
+
 ## Commands
 
 ```bash
@@ -50,6 +61,25 @@ pnpm --filter core-api test         # unit tests (Vitest)
 pnpm --filter core-api test:e2e     # e2e tests (Vitest + supertest)
 pnpm --filter core-api lint         # oxlint
 ```
+
+## Tests
+
+```bash
+pnpm --filter core-api test        # unit (Vitest), no external services
+pnpm --filter core-api test:e2e    # HTTP contract (Vitest + supertest)
+pnpm --filter core-api test:cov    # coverage report
+```
+
+Unit tests cover pure logic (env validation, filter, middleware, service,
+controller delegation). E2E tests boot the real app (`AppModule` +
+`configureApp`) and cover the HTTP contract: health, Swagger, the error
+envelope, and request logging.
+
+Coverage is a guide, not a gate: the text reporter only lists files that still
+have uncovered lines, and e2e-only glue such as `main.ts` and `configure-app.ts`
+reports 0% here because unit tests never boot the app.
+
+From step 2.1c onward, e2e tests also need the local Docker Postgres.
 
 ## Endpoints
 

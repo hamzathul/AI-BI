@@ -4,21 +4,30 @@ import { HealthService } from './health.service.js';
 
 describe('HealthController', () => {
   let healthController: HealthController;
+  const healthService = {
+    getHealth: vi.fn(),
+  };
 
   beforeEach(async () => {
+    healthService.getHealth.mockReset();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
-      providers: [HealthService],
+      providers: [{ provide: HealthService, useValue: healthService }],
     }).compile();
 
     healthController = module.get<HealthController>(HealthController);
   });
 
-  it('reports the service as healthy', () => {
-    const health = healthController.getHealth();
+  it('returns the service result unchanged', () => {
+    const health = {
+      status: 'ok' as const,
+      uptime: 12,
+      timestamp: '2026-10-19T15:07:33.019Z',
+    };
+    healthService.getHealth.mockReturnValue(health);
 
-    expect(health.status).toBe('ok');
-    expect(health.uptime).toBeGreaterThanOrEqual(0);
-    expect(Number.isNaN(Date.parse(health.timestamp))).toBe(false);
+    expect(healthController.getHealth()).toBe(health);
+    expect(healthService.getHealth).toHaveBeenCalledOnce();
   });
 });

@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Logger,
   NotFoundException,
   type ArgumentsHost,
@@ -74,6 +76,19 @@ describe('AllExceptionsFilter', () => {
     const body = json.mock.calls[0][0] as ApiErrorBody;
     expect(body.message).toEqual(['email is required', 'name is required']);
     expect(body.error).toBe('Bad Request');
+  });
+
+  it('uses a plain string response as the message', () => {
+    const { host, json } = createHost();
+
+    filter.catch(new HttpException('Teapot', HttpStatus.I_AM_A_TEAPOT), host);
+
+    const body = json.mock.calls[0][0] as ApiErrorBody;
+    expect(body).toMatchObject({
+      statusCode: 418,
+      error: "I'm a Teapot",
+      message: 'Teapot',
+    });
   });
 
   it('hides internal details of unknown errors', () => {

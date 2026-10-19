@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 1 — Core API 101. Next step: 1.5 (Phase 1 review + test audit).**
+> **Current status: Phase 1 complete. Next step: 2.1a (sample database "Acme Inc.").**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -119,7 +119,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 - [x] **1.2 Config & environment** · *Build:* `.env` + `.env.example`, ConfigModule, validated env (Zod). *Learn:* why config is validated at boot. *Done:* missing env → clear error at startup.
 - [x] **1.3 Errors & logging conventions** · *Build:* global exception filter (consistent error shape) + request logging middleware. *Done:* one error format everywhere; each request logged with method/path/status/ms.
 - [x] **1.4 OpenAPI** · *Build:* Swagger module at `/api/docs`; document the health response with a DTO. *Learn:* contract-first thinking; how Nest decorators become OpenAPI. *Done:* `/api/docs` live; `/api/docs-json` returns the document; DTO visible.
-- [ ] **1.5 Phase 1 review + test audit** · *Build:* walk through `main.ts`, `configure-app.ts`, filters, middleware, config, and tests; fill any test gaps; finalize the env-only plan/decision docs. *Learn:* how the pieces fit together; what unit vs e2e covers. *Done:* code reviewed, tests green, docs consistent.
+- [x] **1.5 Phase 1 review + test audit** · *Build:* walk through `main.ts`, `configure-app.ts`, filters, middleware, config, and tests; fill any test gaps; finalize the env-only plan/decision docs. *Learn:* how the pieces fit together; what unit vs e2e covers. *Done:* code reviewed, tests green, docs consistent.
 
 **Phase 1 done when:** `start:dev` runs, tests green, `/api/docs` live, code reviewed.
 
@@ -274,3 +274,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-19 | 1 | 1.2 | `@nestjs/config` + Zod `validateEnv`; `.env`/`.env.example`; fail-fast verified (exit 1, names `DATABASE_URL`); PORT override via `process.env` verified (D28) |
 | 2026-10-19 | 1 | 1.3 | `AllExceptionsFilter` (uniform error envelope, generic 500s) + `requestLogger` middleware (method/path/status/ms; 4xx warn, 5xx error); e2e covers 404 body; D29 |
 | 2026-10-19 | 1 | 1.4 | Swagger at `/api/docs` (lazy document factory, `useGlobalPrefix`) + `HealthDto`; e2e covers `/api/docs-json`; Prisma deferred to 2.1b/c and plan pivoted to env-only single source (D30–D32); 1.5 next |
+| 2026-10-19 | 1 | 1.5 | Phase 1 review: request-lifecycle walkthrough; `HealthService` spec + isolated controller spec; e2e log-wiring and generic-500 coverage; README "How a request flows" + "Tests". **Phase 1 complete** |

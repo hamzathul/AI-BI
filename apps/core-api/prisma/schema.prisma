@@ -1,0 +1,34 @@
+// AI BI app database schema.
+//
+// Migrations target DATABASE_URL (see prisma.config.ts). The read-only source
+// database is introspected separately and never migrated (D30).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Closed set of sync outcomes (D32: enums for closed status sets).
+enum SyncStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("sync_status")
+}
+
+// One row per metadata sync attempt; becomes real in Phase 2.8.
+model SyncRun {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  status     SyncStatus
+  startedAt  DateTime   @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime?  @map("finished_at") @db.Timestamptz(3)
+  error      String?
+
+  @@map("sync_runs")
+}

@@ -1,0 +1,7 @@
+# Prisma-generated client — regenerated on install by `prisma generate`.
+# Not our code, not our formatting (D31).
+src/generated/
+
+# Build + tooling output
+dist/
+coverage/

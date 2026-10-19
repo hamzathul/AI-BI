@@ -2,6 +2,11 @@
 packages:
   - "apps/*"
   - "packages/*"
-# Swagger UI pulls in @scarf/scarf (optional telemetry). Never run its install script.
+# Dependency install scripts: allowlist what may run, deny the rest.
+# Prisma's preinstall checks the Node version; @prisma/engines downloads the
+# engines the CLI needs for migrations. Swagger UI's @scarf/scarf is optional
+# telemetry and never runs.
 allowBuilds:
+  '@prisma/engines': true
   '@scarf/scarf': false
+  prisma: true

@@ -34,7 +34,7 @@ Notes:
 
 ## Quickstart
 
-Phases 0–1 are complete, and Phase 2's connector → metadata → guarded query flow is implemented (review gate next). The web app arrives in Phase 3.
+Phases 0–2 are complete. Phase 3's source → sync → metadata browser is implemented; the human review gates (2.10 Swagger, 3.7 browser) are next.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -43,6 +43,8 @@ docker compose up -d
 
 # 3. Create local env files (gitignored; .env.example is the template)
 cp apps/core-api/.env.example apps/core-api/.env
+# The web app defaults to http://localhost:3001; copy apps/web/.env.example
+# to apps/web/.env.local only if you need to override it.
 
 # 4. Install the workspace
 pnpm install
@@ -53,20 +55,58 @@ pnpm db:seed
 # 6. Sanity-check the app database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 
-# 7. Run the API (second terminal)
-pnpm --filter core-api start:dev
-curl http://localhost:3001/api/health
-# OpenAPI docs: http://localhost:3001/api/docs
+# 7. Run both apps (web :3000, api :3001)
+pnpm dev
+# API health + Swagger: http://localhost:3001/api/health, /api/docs
 
-# 8. Phase 2 flow in Swagger: POST /api/source/test → POST /api/source/sync
-#    → GET /api/metadata → POST /api/query/execute
+# 8. Browser flow: http://localhost:3000
+#    Source → Test connection → Sync metadata → Metadata → hr.employees
 ```
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
 
-> Next: `pnpm --filter web dev` (Phase 3).
+Separate processes: `pnpm --filter core-api start:dev` and `pnpm --filter web dev`.
 
-## Repo layout (target)
+## Web app notes
+
+- The browser calls core-api **directly**; core-api allows the exact `WEB_ORIGIN` (`http://localhost:3000` by default) via CORS (D43). There is no Next.js proxy.
+- `NEXT_PUBLIC_API_BASE_URL` is the API **origin only** (`http://localhost:3001`). Generated Swagger paths already include `/api`, so adding the prefix would duplicate it (D44).
+- Source credentials never reach the browser. `GET /api/source` returns only the database name; connection tests run server-side.
+- API types are generated from the live OpenAPI document:
+
+```bash
+pnpm --filter web api:types
+# core-api builds + writes openapi.json (gitignored), then openapi-typescript
+# writes src/lib/api/schema.d.ts (committed — review its diff)
+```
+
+## Tests
+
+| Command                           | What it covers                                             |
+| --------------------------------- | ---------------------------------------------------------- |
+| `pnpm --filter core-api test`     | API unit tests (Vitest)                                    |
+| `pnpm --filter core-api test:e2e` | API HTTP/database tests (needs Docker Postgres)            |
+| `pnpm --filter web test`          | Web unit/components (Vitest + Testing Library + jsdom)     |
+| `pnpm --filter web typecheck`     | Web TypeScript (`tsc --noEmit`)                            |
+| `pnpm --filter web e2e`           | Playwright happy path against real core-api + seeded Acme  |
+| `pnpm lint`                       | Workspace lint (oxlint for API, ESLint for web)            |
+
+Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
+
+## Main API endpoints
+
+| Method | Path                 | Purpose                                        |
+| ------ | -------------------- | ---------------------------------------------- |
+| GET    | `/api/health`        | Liveness                                       |
+| GET    | `/api/source`        | Safe source status + latest sync attempt       |
+| POST   | `/api/source/test`   | Connect + audit the read-only role             |
+| POST   | `/api/source/sync`   | Introspect and replace the metadata snapshot   |
+| GET    | `/api/metadata`      | Stored metadata tree + relation graph          |
+| POST   | `/api/query/execute` | Temporary guarded raw-SQL endpoint (Phase 4)   |
+
+Full request/response shapes: `http://localhost:3001/api/docs`.
+
+## Repo layout
 
 ```
 apps/web          Next.js frontend            (Phase 3)

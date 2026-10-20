@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { STATUS_CODES } from 'node:http';
 import type { Request, Response } from 'express';
+import type { ApiErrorDto } from '../dto/api-error.dto.js';
 import {
   ConnectorError,
   type ConnectorErrorCode,
@@ -30,16 +31,6 @@ export const CONNECTOR_ERROR_STATUS: Readonly<
   UNSUPPORTED: HttpStatus.NOT_IMPLEMENTED,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
-
-export interface ApiErrorBody {
-  statusCode: number;
-  error: string;
-  message: string | string[];
-  /** Normalized connector code, present only for source failures (D39). */
-  code?: ConnectorErrorCode;
-  path: string;
-  timestamp: string;
-}
 
 /**
  * The single exit door for every failure: HttpExceptions keep their status
@@ -69,7 +60,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const exceptionResponse =
       exception instanceof HttpException ? exception.getResponse() : undefined;
 
-    const body: ApiErrorBody = {
+    const body: ApiErrorDto = {
       statusCode: status,
       error: connectorError
         ? (STATUS_CODES[status] ?? 'Error')

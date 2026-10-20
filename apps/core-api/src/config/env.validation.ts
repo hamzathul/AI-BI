@@ -10,6 +10,8 @@ export const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  /** Exact browser origin allowed by CORS (the Phase 3 web app). */
+  WEB_ORIGIN: z.url().default('http://localhost:3000'),
   /** App's own database: where AI BI stores its data (Prisma). */
   DATABASE_URL: z.url(),
   /** Read-only source database the connector reads (D30/D33). */

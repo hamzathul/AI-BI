@@ -53,6 +53,9 @@ async function clearMetadata(prisma: PrismaService): Promise<void> {
   await prisma.dbRelation.deleteMany();
   await prisma.dbColumn.deleteMany();
   await prisma.dbObject.deleteMany();
+  // `syncedAt` comes from the latest SUCCEEDED run, so runs are part of the
+  // baseline too. Playwright's sync may have left one behind.
+  await prisma.syncRun.deleteMany();
 }
 
 function findObject(
@@ -72,7 +75,6 @@ function findObject(
 describe('metadata sync (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
-  const createdRunIds: string[] = [];
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -89,14 +91,6 @@ describe('metadata sync (e2e)', () => {
 
   afterEach(async () => {
     await clearMetadata(prisma).catch(() => undefined);
-
-    if (createdRunIds.length > 0) {
-      await prisma.syncRun
-        .deleteMany({ where: { id: { in: createdRunIds } } })
-        .catch(() => undefined);
-      createdRunIds.length = 0;
-    }
-
     await app.close();
   });
 
@@ -104,9 +98,7 @@ describe('metadata sync (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/source/sync')
       .expect(200);
-    const body = response.body as SyncResponse;
-    createdRunIds.push(body.id);
-    return body;
+    return response.body as SyncResponse;
   }
 
   async function getMetadata(): Promise<MetadataResponse> {
@@ -237,10 +229,9 @@ describe('metadata sync (e2e)', () => {
   });
 
   it('refuses a concurrent sync with 409 while a run is RUNNING', async () => {
-    const running = await prisma.syncRun.create({
+    await prisma.syncRun.create({
       data: { status: 'RUNNING' },
     });
-    createdRunIds.push(running.id);
 
     const response = await request(app.getHttpServer())
       .post('/api/source/sync')
@@ -260,7 +251,6 @@ describe('metadata sync (e2e)', () => {
         startedAt: new Date(Date.now() - STALE_SYNC_MS - 60_000),
       },
     });
-    createdRunIds.push(stale.id);
 
     const result = await sync();
 

@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 2 implementation complete (2.4–2.9). Next step: 2.10 review gate — try the source → sync → metadata → query flow in `/api/docs`, then Phase 3.**
+> **Current status: Phase 3 implementation complete (3.1–3.6). Next: review gates 2.10 (Swagger walkthrough) and 3.7 (browser walkthrough), then review/commit.**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -56,15 +56,16 @@ Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 | Database | **PostgreSQL 18** (Docker `postgres:18`) | 19 is RC — not for us yet |
 | Core API | **NestJS 12** + TypeScript | the learning curve we tackle in Phase 1 |
 | ORM | **Prisma 7.10.1** (pinned) | migrations + typed queries; `PrismaPg` driver adapter |
-| Frontend | **Next.js 16.2** (App Router) + TypeScript | Phase 3 |
-| UI | Tailwind CSS + **shadcn/ui** + sonner (toasts) | consistent, modern |
+| Frontend | **Next.js 16.4** (App Router) + React 19 + TypeScript | Phase 3 |
+| UI | **Tailwind CSS 4** + **shadcn/ui** (radix-nova) + sonner (toasts) | consistent, modern |
 | Client data | **TanStack Query v5** | server-state cache |
-| Forms/validation | **React Hook Form + Zod** | |
+| API client | **openapi-fetch** + generated `openapi-typescript` types | typed transport, no hand-written duplicates |
+| Forms/validation | **React Hook Form + Zod** | Phase 4+ |
 | Charts | **ECharts** (latest) + custom theme | behind `<ChartRenderer/>` |
 | Dashboard grid | **react-grid-layout** | |
-| API contract | NestJS **Swagger/OpenAPI** → `openapi-typescript` types | no hand-written duplicates |
+| API contract | NestJS **Swagger/OpenAPI** → `openapi-typescript` types | `openapi.json` is generated; `schema.d.ts` is committed |
 | API tests | Vitest + supertest | |
-| Web tests | Vitest + **Playwright** | |
+| Web tests | Vitest + Testing Library + **Playwright** | unit states + one real-browser happy path |
 | AI service (Phase 6) | Python + **uv**, **FastAPI**, **Pydantic v2**, **LangGraph 1.x**, ruff, pytest | provider SDK via own `llm.py` boundary |
 
 ## 6. Target repo layout
@@ -152,14 +153,15 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** the whole Phase 2 flow available in the browser.
 **You'll learn:** App Router, client components, TanStack Query, forms, typed clients from OpenAPI.
 
-- [ ] **3.1 Scaffold `apps/web`** · *Build:* Next.js 16 + TS + Tailwind + shadcn init; app shell + nav; CORS with core-api; root script runs both. *Learn:* App Router layout/pages. *Done:* both apps run with one command.
-- [ ] **3.2 Typed API client** · *Build:* generate types from OpenAPI (`openapi-typescript`) + tiny `openapi-fetch` wrapper + QueryClientProvider; first hook (source status). *Learn:* why generated types beat hand-written ones. *Done:* source status renders from live API.
-- [ ] **3.3 Source overview page** · *Build:* read-only configured database, server version, last sync; loading, empty, error states. *Done:* page renders the env-configured source safely.
-- [ ] **3.4 Test & Sync actions** · *Build:* buttons with status polling + toasts (sonner). *Done:* source test + sync feedback in UI.
-- [ ] **3.5 Metadata browser** · *Build:* schema → table tree; column table with type/PK/FK badges. *Done:* you can explore Acme visually.
-- [ ] **3.6 Playwright setup + first e2e** · *Build:* e2e happy path: test source → sync → see "employees" table. *Learn:* e2e vs unit; selectors that don't break. *Done:* `pnpm --filter web e2e` green.
+- [x] **3.1 Scaffold `apps/web`** · *Build:* Next.js 16.4.2 + TS + Tailwind 4 + shadcn (radix-nova); app shell + nav; `WEB_ORIGIN` CORS in `configureApp()`; root `pnpm dev` runs both apps. *Learn:* App Router layout/pages. *Done:* both apps run with one command; CORS e2e covers the web origin + preflight.
+- [x] **3.2 Typed API client** · *Build:* `ApiErrorDto` in the OpenAPI contract; in-process `openapi:export`; committed `openapi-typescript` schema; `openapi-fetch` wrapper + one `ApiError`; `QueryClientProvider`; `useSourceStatus`. *Learn:* why generated types beat hand-written ones. *Done:* source status renders from the live API; error envelopes and network failures normalize.
+- [x] **3.3 Source overview page** · *Build:* configuration card (database name only), last-sync card (status/timestamps/safe error), connection-result card; loading, empty, error states; `/` redirects to `/source`. *Done:* page renders the env-configured source safely without exposing host/credentials.
+- [x] **3.4 Test & Sync actions** · *Build:* Test connection + Sync metadata mutations, busy states, sonner toasts, 1.5 s source polling only while sync is in flight, source/metadata cache invalidation, connector-code display. *Done:* source test + sync feedback in the UI; Browse metadata appears after success.
+- [x] **3.5 Metadata browser** · *Build:* pure metadata index (counts, PK/FK lookups, incoming/outgoing relations); schema → object master list; column table with type/nullability/default/comment and PK/FK badges; relations panel. *Done:* you can explore Acme visually, including the self-relation.
+- [x] **3.6 Playwright setup + first e2e** · *Build:* Playwright config with both dev servers; serial happy path: test source → sync → see "employees" → `salary`/`numeric(10,2)`/FK. *Learn:* e2e vs unit; selectors that don't break. *Done:* `pnpm --filter web e2e` green (1 test), web build/lint/typecheck green.
+- [ ] **3.7 Review gate** · Browser walkthrough of the full source → sync → metadata flow; review the web data layer and state handling; then commit.
 
-**Phase 3 done when:** browser happy path complete; e2e green; you can trace the full data flow yourself.
+**Phase 3 done when:** browser happy path complete; e2e green; you can trace the full data flow yourself and have reviewed/committed the code.
 
 ---
 
@@ -284,3 +286,9 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-20 | 2 | 2.5–2.7 | `pg_catalog` introspection in one `REPEATABLE READ, READ ONLY` transaction: 3 schemas, 8 objects (6 tables + 2 views), 38 columns, 5 FKs incl. `employees.manager_id → employees.id`; canonical types, comments/defaults, column/primary-key order; unit fixtures + Acme integration test (D40) |
 | 2026-10-20 | 2 | 2.8 | Metadata migration `20261020034647_add_metadata_tables` (`db_objects`, `db_columns`, `db_relations`, `db_object_kind`); synchronous full-replace sync (`RUNNING` → `SUCCEEDED`/`FAILED`, stale >15 min, 409 concurrent), `POST /api/source/sync`, `GET /api/metadata`; snapshot IDs change per sync; e2e proves empty → exact counts → idempotence → 409/stale; e2e files now run sequentially (D41) |
 | 2026-10-20 | 2 | 2.9 | Guarded query execution: strict `SELECT`/`WITH` guard (single statement, no comments/`;`, keyword/function denylist, ≤20k chars), Zod pipe, wrapper LIMIT (10k cap + `truncated`), 15 s `statement_timeout`, read-only transaction, abort → `pg_cancel_backend`, OID type cache; temporary `POST /api/query/execute`; guard/unit + HTTP e2e (aggregate, types, cap, rejects, timeout/cancel); **132 unit / 41 e2e green**, build/lint/Prettier clean (D42) |
+| 2026-10-20 | 3 | 3.1 | Scaffolded `apps/web` (Next 16.4.2, React 19.3.1, Tailwind 4, shadcn radix-nova/neutral) with app shell + Source/Metadata nav; added exact-origin CORS via `WEB_ORIGIN` in `configureApp()` + unit/e2e coverage; root `pnpm dev` runs both apps (D43/D45) |
+| 2026-10-20 | 3 | 3.2 | Added `ApiErrorDto` to the shared error envelope + OpenAPI responses; `openapi:export` writes `openapi.json` in-process (gitignored); generated + committed `schema.d.ts`; `openapi-fetch` client normalizes envelopes/network errors; TanStack `QueryClientProvider`, `useSourceStatus`; web Vitest/jsdom harness (D44) |
+| 2026-10-20 | 3 | 3.3 | Source page: configuration, last-sync, and session connection cards; loading skeletons, no-sync empty state, retryable error; `/` → `/source`; safe database-name-only rendering (D37) |
+| 2026-10-20 | 3 | 3.4 | Test + Sync mutations with disabled/busy states, toasts, connector code badges, conditional 1.5 s polling while sync is in flight, source+metadata invalidation, Browse metadata link (D46) |
+| 2026-10-20 | 3 | 3.5 | Metadata browser: pure index (counts, FK-by-column, directional relations), schema/object master list (default first TABLE), column table with type/nullability/default/comment + PK/FK badges, relations panel (D48) |
+| 2026-10-20 | 3 | 3.6 | Playwright config (two web servers, chromium, workers=1) + serial e2e: `/` → source → test → sync → metadata → employees salary/type/FK; **44 core-api e2e / 21 web unit / 1 Playwright green**, web build/lint/typecheck clean (D47). Review gate 3.7 open |

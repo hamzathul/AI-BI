@@ -12,6 +12,7 @@ describe('validateEnv', () => {
 
     expect(env.NODE_ENV).toBe('development');
     expect(env.PORT).toBe(3001);
+    expect(env.WEB_ORIGIN).toBe('http://localhost:3000');
     expect(env.DATABASE_URL).toBe(validEnv.DATABASE_URL);
     expect(env.SOURCE_DATABASE_URL).toBe(validEnv.SOURCE_DATABASE_URL);
   });
@@ -31,6 +32,12 @@ describe('validateEnv', () => {
   it('rejects a missing SOURCE_DATABASE_URL', () => {
     expect(() => validateEnv({ DATABASE_URL: validEnv.DATABASE_URL })).toThrow(
       /SOURCE_DATABASE_URL/,
+    );
+  });
+
+  it('rejects an invalid WEB_ORIGIN', () => {
+    expect(() => validateEnv({ ...validEnv, WEB_ORIGIN: 'not-a-url' })).toThrow(
+      /WEB_ORIGIN/,
     );
   });
 

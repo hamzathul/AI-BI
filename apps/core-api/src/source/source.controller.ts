@@ -5,6 +5,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ApiErrorDto } from '../common/dto/api-error.dto.js';
 import { SyncService } from '../metadata/sync.service.js';
 import {
   ConnectionTestDto,
@@ -24,6 +25,11 @@ export class SourceController {
   @Get()
   @ApiOperation({ summary: 'Configured source database status' })
   @ApiOkResponse({ type: SourceStatusDto })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'The app database could not be read',
+    type: ApiErrorDto,
+  })
   getStatus(): Promise<SourceStatusDto> {
     return this.sourceService.getStatus();
   }
@@ -40,10 +46,17 @@ export class SourceController {
   @ApiResponse({
     status: HttpStatus.BAD_GATEWAY,
     description: 'The source is unreachable or rejected the credentials',
+    type: ApiErrorDto,
   })
   @ApiResponse({
     status: HttpStatus.GATEWAY_TIMEOUT,
     description: 'The source did not respond in time',
+    type: ApiErrorDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Unexpected server failure',
+    type: ApiErrorDto,
   })
   testConnection(): Promise<ConnectionTestDto> {
     return this.sourceService.testConnection();
@@ -61,14 +74,22 @@ export class SourceController {
   @ApiResponse({
     status: HttpStatus.CONFLICT,
     description: 'Another metadata sync is already running',
+    type: ApiErrorDto,
   })
   @ApiResponse({
     status: HttpStatus.BAD_GATEWAY,
     description: 'The source is unreachable or rejected the credentials',
+    type: ApiErrorDto,
   })
   @ApiResponse({
     status: HttpStatus.GATEWAY_TIMEOUT,
     description: 'The source did not respond in time',
+    type: ApiErrorDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Unexpected server failure',
+    type: ApiErrorDto,
   })
   runSync(): Promise<SyncResultDto> {
     return this.syncService.runSync();

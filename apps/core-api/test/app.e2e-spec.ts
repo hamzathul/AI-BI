@@ -5,6 +5,8 @@ import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 
+const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
+
 describe('core-api (e2e)', () => {
   let app: INestApplication<App>;
 
@@ -43,6 +45,33 @@ describe('core-api (e2e)', () => {
     }
   });
 
+  it('allows the configured web origin (CORS)', () => {
+    return request(app.getHttpServer())
+      .get('/api/health')
+      .set('Origin', webOrigin)
+      .expect('access-control-allow-origin', webOrigin)
+      .expect(200);
+  });
+
+  it('does not allow a different origin (CORS)', () => {
+    return request(app.getHttpServer())
+      .get('/api/health')
+      .set('Origin', 'http://evil.example')
+      .expect((res) => {
+        expect(res.headers['access-control-allow-origin']).toBeUndefined();
+      })
+      .expect(200);
+  });
+
+  it('answers CORS preflight for mutating source routes', () => {
+    return request(app.getHttpServer())
+      .options('/api/source/test')
+      .set('Origin', webOrigin)
+      .set('Access-Control-Request-Method', 'POST')
+      .expect('access-control-allow-origin', webOrigin)
+      .expect(204);
+  });
+
   it('/api/docs (GET) serves the Swagger UI', () => {
     return request(app.getHttpServer()).get('/api/docs').expect(200);
   });
@@ -62,6 +91,7 @@ describe('core-api (e2e)', () => {
         expect(res.body.components.schemas.SyncResultDto).toBeDefined();
         expect(res.body.components.schemas.MetadataSnapshotDto).toBeDefined();
         expect(res.body.components.schemas.QueryResultDto).toBeDefined();
+        expect(res.body.components.schemas.ApiErrorDto).toBeDefined();
       });
   });
 

@@ -13,6 +13,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:status": "prisma migrate status",
     "prisma:studio": "prisma studio",
+    "openapi:export": "nest build && node dist/openapi.export.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch",

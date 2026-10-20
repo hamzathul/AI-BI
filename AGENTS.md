@@ -35,8 +35,8 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 ## Stack snapshot (details in PLAN.md §5)
 
 - Runtime: Node 24 LTS, pnpm workspaces, Docker (Postgres 18)
-- `apps/core-api`: NestJS 12 (ESM) + Prisma (arrives 2.1b) + Vitest/supertest, Swagger at `/api/docs`
-- `apps/web`: Next.js 16.2 App Router + Tailwind + shadcn/ui + TanStack Query + RHF/Zod + ECharts (themed)
+- `apps/core-api`: NestJS 12 (ESM) + Prisma 7.10.1 + Vitest/supertest, Swagger at `/api/docs`
+- `apps/web`: Next.js 16.4 App Router + Tailwind 4 + shadcn/ui + TanStack Query v5 + `openapi-fetch` generated client + sonner (RHF/Zod and ECharts arrive later)
 - `apps/ai-service` (Phase 6): Python + uv + FastAPI + Pydantic v2 + LangGraph; LLM SDK only in `llm.py`
 - `sample-data/`: Acme HR + sales seed for the practice database
 
@@ -48,13 +48,18 @@ nvm use 24.22.0                    # activate the project's Node (see README §T
 cp apps/core-api/.env.example apps/core-api/.env  # one-time local config (gitignored)
 pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
-pnpm --filter core-api start:dev   # api on :3001 (GET /api/health; docs at /api/docs)
+pnpm dev                           # both apps: web :3000 + api :3001
+pnpm --filter core-api start:dev   # api only (:3001; GET /api/health, docs at /api/docs)
 pnpm --filter core-api test        # api unit tests (Vitest)
 pnpm --filter core-api test:e2e    # api e2e tests (Vitest + supertest)
-
-# Arrives with the web app (Phase 3)
-pnpm --filter web dev              # web on :3000
+pnpm --filter web dev              # web only (:3000; `/` redirects to `/source`)
+pnpm --filter web test             # web unit tests (Vitest + Testing Library)
+pnpm --filter web typecheck        # tsc --noEmit
+pnpm --filter web e2e              # Playwright (needs Docker Postgres + `pnpm db:seed`)
+pnpm --filter web api:types        # export OpenAPI then regenerate committed `schema.d.ts`
 ```
+
+Web env: `NEXT_PUBLIC_API_BASE_URL` is the API **origin** (`http://localhost:3001`) — Swagger paths already include `/api`. core-api allows it via `WEB_ORIGIN`.
 
 ## Current status
 

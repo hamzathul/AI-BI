@@ -14,6 +14,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { ApiErrorDto } from '../common/dto/api-error.dto.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import {
   QueryRequestDto,
@@ -39,14 +40,22 @@ export class QueryController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'The SQL was rejected by validation or the guard',
+    type: ApiErrorDto,
   })
   @ApiResponse({
     status: HttpStatus.BAD_GATEWAY,
     description: 'The source is unreachable or rejected the credentials',
+    type: ApiErrorDto,
   })
   @ApiResponse({
     status: HttpStatus.GATEWAY_TIMEOUT,
     description: 'The query timed out or was canceled',
+    type: ApiErrorDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Unexpected server failure',
+    type: ApiErrorDto,
   })
   async execute(
     @Body(new ZodValidationPipe(queryRequestSchema)) body: QueryRequestDto,

@@ -95,6 +95,7 @@ From step 2.1c onward, e2e tests also need the local Docker Postgres.
 | Method | Path | Response |
 |---|---|---|
 | GET | `/api/health` | `{ "status": "ok", "uptime": 12, "timestamp": "..." }` |
+| GET | `/api/source` | Safe source status: configured flag, database name, last sync — never host or credentials |
 | GET | `/api/docs` | Swagger UI (from controller/DTO decorators) |
 | GET | `/api/docs-json` | Generated OpenAPI document |
 

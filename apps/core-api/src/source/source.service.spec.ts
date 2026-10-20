@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { SourceConnectorService } from '../connectors/source-connector.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceService } from './source.service.js';
 
@@ -10,17 +11,25 @@ describe('SourceService', () => {
   let service: SourceService;
   const config = { getOrThrow: vi.fn() };
   const prisma = { syncRun: { findFirst: vi.fn() } };
+  const connector = {
+    testConnection: vi.fn(),
+  };
+  const sourceConnector = {
+    getConnector: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
     config.getOrThrow.mockReturnValue(SOURCE_URL);
     prisma.syncRun.findFirst.mockResolvedValue(null);
+    sourceConnector.getConnector.mockReturnValue(connector);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SourceService,
         { provide: ConfigService, useValue: config },
         { provide: PrismaService, useValue: prisma },
+        { provide: SourceConnectorService, useValue: sourceConnector },
       ],
     }).compile();
 
@@ -78,5 +87,19 @@ describe('SourceService', () => {
     await expect(service.getStatus()).resolves.toMatchObject({
       database: null,
     });
+  });
+
+  it('delegates the live test to the configured connector', async () => {
+    const result = {
+      serverVersion: '18.6',
+      database: 'acme',
+      readOnly: true,
+      latencyMs: 4,
+    };
+    connector.testConnection.mockResolvedValue(result);
+
+    await expect(service.testConnection()).resolves.toBe(result);
+    expect(sourceConnector.getConnector).toHaveBeenCalledOnce();
+    expect(connector.testConnection).toHaveBeenCalledOnce();
   });
 });

@@ -83,4 +83,23 @@ describe('source status (e2e)', () => {
     expect(body).not.toContain(sourceUrl.host);
     expect(body).not.toContain(process.env.SOURCE_DATABASE_URL);
   });
+
+  it('POST /api/source/test reports the live source and read-only audit', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/source/test')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      serverVersion: expect.stringMatching(/^\d+\.\d+/),
+      database: 'acme',
+      readOnly: true,
+      latencyMs: expect.any(Number),
+    });
+
+    const body = JSON.stringify(response.body);
+    const sourceUrl = new URL(process.env.SOURCE_DATABASE_URL!);
+    expect(body).not.toContain(sourceUrl.username);
+    expect(body).not.toContain(sourceUrl.password);
+    expect(body).not.toContain(sourceUrl.host);
+  });
 });

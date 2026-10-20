@@ -54,7 +54,14 @@ describe('core-api (e2e)', () => {
       .expect((res) => {
         expect(res.body.info.title).toBe('AI BI API');
         expect(res.body.paths['/api/health']).toBeDefined();
+        expect(res.body.paths['/api/source/test'].post).toBeDefined();
+        expect(res.body.paths['/api/source/sync'].post).toBeDefined();
+        expect(res.body.paths['/api/metadata'].get).toBeDefined();
+        expect(res.body.paths['/api/query/execute'].post).toBeDefined();
         expect(res.body.components.schemas.HealthDto).toBeDefined();
+        expect(res.body.components.schemas.SyncResultDto).toBeDefined();
+        expect(res.body.components.schemas.MetadataSnapshotDto).toBeDefined();
+        expect(res.body.components.schemas.QueryResultDto).toBeDefined();
       });
   });
 

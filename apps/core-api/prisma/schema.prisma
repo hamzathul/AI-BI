@@ -22,7 +22,7 @@ enum SyncStatus {
   @@map("sync_status")
 }
 
-// One row per metadata sync attempt; becomes real in Phase 2.8.
+// One row per metadata sync attempt (2.8).
 model SyncRun {
   id         String     @id @default(uuid(7)) @db.Uuid
   status     SyncStatus
@@ -31,4 +31,58 @@ model SyncRun {
   error      String?
 
   @@map("sync_runs")
+}
+
+// Closed set of discovered object kinds (D32/D41).
+enum DbObjectKind {
+  TABLE
+  VIEW
+
+  @@map("db_object_kind")
+}
+
+// The current metadata snapshot. A sync replaces these rows atomically (D41).
+model DbObject {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  schemaName String       @map("schema_name")
+  name       String
+  kind       DbObjectKind
+  columns    DbColumn[]
+
+  @@unique([schemaName, name])
+  @@map("db_objects")
+}
+
+model DbColumn {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  objectId           String       @map("object_id") @db.Uuid
+  object             DbObject     @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  name               String
+  dataType           String       @map("data_type")
+  nullable           Boolean
+  defaultValue       String?      @map("default_value")
+  comment            String?
+  // 1-based position within the primary key; null when not part of it.
+  // Storing the position (not just a boolean) preserves composite key order.
+  primaryKeyPosition Int?         @map("primary_key_position")
+  ordinalPosition    Int          @map("ordinal_position")
+  outgoingRelations  DbRelation[] @relation("RelationFrom")
+  incomingRelations  DbRelation[] @relation("RelationTo")
+
+  @@unique([objectId, name])
+  @@map("db_columns")
+}
+
+model DbRelation {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  name         String
+  fromColumnId String   @map("from_column_id") @db.Uuid
+  toColumnId   String   @map("to_column_id") @db.Uuid
+  fromColumn   DbColumn @relation("RelationFrom", fields: [fromColumnId], references: [id], onDelete: Cascade)
+  toColumn     DbColumn @relation("RelationTo", fields: [toColumnId], references: [id], onDelete: Cascade)
+
+  @@unique([name, fromColumnId, toColumnId])
+  @@index([fromColumnId])
+  @@index([toColumnId])
+  @@map("db_relations")
 }

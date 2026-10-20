@@ -69,11 +69,13 @@ export interface DiscoveredObject {
 
 export interface DiscoveredColumn {
   name: string;
-  /** Canonical type, e.g. "numeric(10,2)" — mapping lands in 2.6. */
+  /** Canonical type, e.g. "numeric(10,2)" (2.6). */
   dataType: string;
   nullable: boolean;
   defaultValue: string | null;
   comment: string | null;
+  /** 1-based position from pg_attribute; keeps catalog order in the UI. */
+  ordinalPosition: number;
 }
 
 /** A foreign-key edge in the join graph. */

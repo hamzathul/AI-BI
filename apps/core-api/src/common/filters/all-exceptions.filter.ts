@@ -8,19 +8,44 @@ import {
 } from '@nestjs/common';
 import { STATUS_CODES } from 'node:http';
 import type { Request, Response } from 'express';
+import {
+  ConnectorError,
+  type ConnectorErrorCode,
+} from '../../connectors/connector.errors.js';
+
+/**
+ * Connector failures are upstream failures, not client mistakes (D39).
+ * AUTH/PERMISSION are 502 rather than 401/403: the client did not fail to
+ * authenticate with *our* API — the server's configured source credential did.
+ */
+export const CONNECTOR_ERROR_STATUS: Readonly<
+  Record<ConnectorErrorCode, number>
+> = {
+  CONNECTION: HttpStatus.BAD_GATEWAY,
+  AUTH: HttpStatus.BAD_GATEWAY,
+  PERMISSION: HttpStatus.BAD_GATEWAY,
+  NOT_FOUND: HttpStatus.NOT_FOUND,
+  SYNTAX: HttpStatus.UNPROCESSABLE_ENTITY,
+  TIMEOUT: HttpStatus.GATEWAY_TIMEOUT,
+  UNSUPPORTED: HttpStatus.NOT_IMPLEMENTED,
+  INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
+};
 
 export interface ApiErrorBody {
   statusCode: number;
   error: string;
   message: string | string[];
+  /** Normalized connector code, present only for source failures (D39). */
+  code?: ConnectorErrorCode;
   path: string;
   timestamp: string;
 }
 
 /**
  * The single exit door for every failure: HttpExceptions keep their status
- * and message, anything else becomes a generic 500. Internal details are
- * logged server-side, never sent to the client.
+ * and message, ConnectorErrors use the upstream mapping above, and anything
+ * else becomes a generic 500. Internal details are logged server-side, never
+ * sent to the client.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -31,8 +56,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
 
-    const status =
-      exception instanceof HttpException
+    const connectorError =
+      exception instanceof ConnectorError ? exception : null;
+
+    const status = connectorError
+      ? CONNECTOR_ERROR_STATUS[connectorError.code]
+      : exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -42,20 +71,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body: ApiErrorBody = {
       statusCode: status,
-      error: isServerError
-        ? (STATUS_CODES[status] ?? 'Internal Server Error')
-        : getError(exceptionResponse, status),
-      message: isServerError
-        ? 'Internal server error'
-        : getMessage(exceptionResponse, exception),
+      error: connectorError
+        ? (STATUS_CODES[status] ?? 'Error')
+        : isServerError
+          ? (STATUS_CODES[status] ?? 'Internal Server Error')
+          : getError(exceptionResponse, status),
+      message: connectorError
+        ? connectorError.message
+        : isServerError
+          ? 'Internal server error'
+          : getMessage(exceptionResponse, exception),
+      ...(connectorError ? { code: connectorError.code } : {}),
       path: request.originalUrl,
       timestamp: new Date().toISOString(),
     };
 
     if (isServerError) {
+      const stack = exception instanceof Error ? exception.stack : undefined;
+      const cause =
+        connectorError?.cause instanceof Error
+          ? connectorError.cause.stack
+          : undefined;
+
       this.logger.error(
         `${request.method} ${request.originalUrl} ${status}`,
-        exception instanceof Error ? exception.stack : undefined,
+        [stack, cause].filter(Boolean).join('\n') || undefined,
       );
     }
 

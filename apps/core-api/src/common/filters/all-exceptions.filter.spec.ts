@@ -8,7 +8,12 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
+  ConnectorError,
+  type ConnectorErrorCode,
+} from '../../connectors/connector.errors.js';
+import {
   AllExceptionsFilter,
+  CONNECTOR_ERROR_STATUS,
   type ApiErrorBody,
 } from './all-exceptions.filter.js';
 
@@ -107,4 +112,30 @@ describe('AllExceptionsFilter', () => {
     expect(JSON.stringify(body)).not.toContain('hunter2');
     expect(errorSpy).toHaveBeenCalled();
   });
+
+  it.each(Object.entries(CONNECTOR_ERROR_STATUS))(
+    'maps connector error %s to HTTP %i with a safe code',
+    (code, expected) => {
+      const { host, status, json } = createHost();
+      const cause = new Error('password=source-secret');
+
+      filter.catch(
+        new ConnectorError(code as ConnectorErrorCode, 'Safe source message.', {
+          cause,
+        }),
+        host,
+      );
+
+      expect(status).toHaveBeenCalledWith(expected);
+
+      const body = json.mock.calls[0][0] as ApiErrorBody;
+      expect(body).toMatchObject({
+        statusCode: expected,
+        code,
+        message: 'Safe source message.',
+      });
+      expect(JSON.stringify(body)).not.toContain('source-secret');
+      expect(body.error).toBeDefined();
+    },
+  );
 });

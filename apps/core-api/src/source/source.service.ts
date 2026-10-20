@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SourceConnectorService } from '../connectors/source-connector.service.js';
 import type { SyncRun } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { LastSyncDto, SourceStatusDto } from './source.dto.js';
+import type {
+  ConnectionTestDto,
+  LastSyncDto,
+  SourceStatusDto,
+} from './source.dto.js';
 
 type SyncSummary = Pick<
   SyncRun,
@@ -40,6 +45,7 @@ export class SourceService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly sourceConnector: SourceConnectorService,
   ) {}
 
   /**
@@ -67,5 +73,13 @@ export class SourceService {
       database: databaseNameFromUrl(sourceUrl),
       lastSync: lastRun ? toLastSyncDto(lastRun) : null,
     };
+  }
+
+  /**
+   * Opens a real connection to the source and audits its privileges (2.4).
+   * Errors are already normalized by the connector and mapped by the filter.
+   */
+  async testConnection(): Promise<ConnectionTestDto> {
+    return this.sourceConnector.getConnector().testConnection();
   }
 }

@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ConnectorsModule } from './connectors/connectors.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
+import { MetadataModule } from './metadata/metadata.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { QueryModule } from './query/query.module.js';
 import { SourceModule } from './source/source.module.js';
 
 @Module({
@@ -12,6 +15,9 @@ import { SourceModule } from './source/source.module.js';
       validate: validateEnv,
     }),
     PrismaModule,
+    ConnectorsModule,
+    MetadataModule,
+    QueryModule,
     HealthModule,
     SourceModule,
   ],

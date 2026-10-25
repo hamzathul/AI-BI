@@ -11,6 +11,7 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "seed:semantic": "nest build && node dist/semantic/seed-acme.js",
     "prisma:status": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "openapi:export": "nest build && node dist/openapi.export.js",

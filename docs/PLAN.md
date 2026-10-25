@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 3 implementation complete (3.1–3.6). Next: review gates 2.10 (Swagger walkthrough) and 3.7 (browser walkthrough), then review/commit.**
+> **Current status: Phase 4 implementation complete (4.1–4.6). Next: review the Phase 4 diff, walk through the semantic editor + QuerySpec flow, then commit. Older review gates 2.10 (Swagger) and 3.7 (browser) remain open.**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -170,12 +170,12 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** define what data *means* once (metrics/dimensions), then query it safely via a structured spec.
 **You'll learn:** query-spec design, safe SQL assembly (quoting, allowlists), golden-file testing.
 
-- [ ] **4.1 Semantic model schema** · *Build:* tables: `semantic_models`, `datasets` (exposed tables), `dimensions`, `metrics`, `joins`; migration. *Learn:* why joins/grains live in the model, not the UI. *Done:* tables + relations in app DB.
-- [ ] **4.2 Semantic CRUD API** · *Build:* endpoints + validation rules (metric needs expression + agg; dimension needs column; etc.) + tests. *Done:* validated endpoints.
-- [ ] **4.3 Minimal editor UI** · *Build:* JSON editor page with validate/save (forms come later if we want). *Done:* you can define a metric in the browser.
-- [ ] **4.4 QuerySpec v0 + compiler** · *Build:* Zod QuerySpec type (metrics, dimensions, filters, timeGrain, order, limit) + **compiler → SQL** using metadata identifier allowlist + parameterized filters. *Verify:* golden snapshot tests for 6–8 representative specs. *Learn:* this is the "IR-first" heart of the product. *Done:* compiler trustworthy, snapshots reviewed by you.
-- [ ] **4.5 `POST /query/execute`** · *Build:* spec → compile → guard → execute → `{columns, rows, meta}`; error taxonomy mapped. *Done:* endpoint returns correct aggregates.
-- [ ] **4.6 Seed the Acme semantic model** · *Build:* HR (headcount, avg_salary) + sales (revenue, orders) metrics and dimensions. *Done:* both domains queryable — proves we're not finance-locked. **Review gate here.**
+- [x] **4.1 Semantic model schema** · *Build:* tables: `semantic_models`, `datasets` (exposed tables), `dimensions`, `metrics`, `metric_filters`, `semantic_joins`; migration. *Learn:* why joins/grains live in the model, not the UI. *Done:* tables + relations in app DB.
+- [x] **4.2 Semantic CRUD API** · *Build:* document endpoints + validation rules (metric needs expression + agg; dimension needs column; etc.) + tests. *Done:* validated endpoints.
+- [x] **4.3 Minimal editor UI** · *Build:* JSON editor page with validate/save/reset/load-example (forms come later if we want). *Done:* you can define a metric in the browser.
+- [x] **4.4 QuerySpec v0 + compiler** · *Build:* Zod QuerySpec type (metrics, dimensions, filters, timeGrain, order, limit) + **compiler → SQL** using metadata identifier allowlist + parameterized filters. *Verify:* golden snapshot tests for 8 representative specs. *Learn:* this is the "IR-first" heart of the product. *Done:* compiler trustworthy, snapshots reviewed by you.
+- [x] **4.5 `POST /query/execute`** · *Build:* spec → compile → guard → execute → `{columns, rows, meta}`; error taxonomy mapped. *Done:* endpoint returns correct aggregates.
+- [x] **4.6 Seed the Acme semantic model** · *Build:* HR (headcount, avg_salary) + sales (revenue, orders) metrics and dimensions. *Done:* both domains queryable — proves we're not finance-locked. **Review gate here.**
 
 **Phase 4 done when:** HR *and* sales aggregates come back correct through QuerySpec; compiler tests green.
 
@@ -292,3 +292,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-20 | 3 | 3.4 | Test + Sync mutations with disabled/busy states, toasts, connector code badges, conditional 1.5 s polling while sync is in flight, source+metadata invalidation, Browse metadata link (D46) |
 | 2026-10-20 | 3 | 3.5 | Metadata browser: pure index (counts, FK-by-column, directional relations), schema/object master list (default first TABLE), column table with type/nullability/default/comment + PK/FK badges, relations panel (D48) |
 | 2026-10-20 | 3 | 3.6 | Playwright config (two web servers, chromium, workers=1) + serial e2e: `/` → source → test → sync → metadata → employees salary/type/FK; **44 core-api e2e / 21 web unit / 1 Playwright green**, web build/lint/typecheck clean (D47). Review gate 3.7 open |
+| 2026-10-23 | 4 | 4.1–4.6 | Semantic schema + migration (`semantic_models`, `datasets`, `dimensions`, `metrics`, `metric_filters`, `semantic_joins`); whole-document API (`GET`/`PUT`/`DELETE /api/semantic/model`, `POST .../validate`, `GET /api/semantic/example`) with metadata/FK/expression validation; QuerySpec v0 + parameterized compiler (8 golden snapshots); `POST /api/query/execute` replaces raw SQL; Acme seed (6 datasets, 11 dimensions, 11 metrics, 4 joins) + `/semantic` JSON editor; **196 core-api unit / 55 e2e / 26 web unit / 2 Playwright green**, core-api build/lint + web build/lint/typecheck clean (D49–D53). Human review/commit next |

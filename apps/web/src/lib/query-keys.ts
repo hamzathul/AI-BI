@@ -2,4 +2,5 @@
 export const queryKeys = {
   source: ["source"] as const,
   metadata: ["metadata"] as const,
+  semanticModel: ["semantic-model"] as const,
 };

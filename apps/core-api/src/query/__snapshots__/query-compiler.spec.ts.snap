@@ -1,0 +1,154 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`QuerySpec compiler > compiles a filtered base-dataset metric 1`] = `
+{
+  "dataset": "employees",
+  "limit": 1000,
+  "parameters": [
+    true,
+    1000,
+  ],
+  "sql": "SELECT
+  count(t0."id") FILTER (WHERE t0."is_active" = $1::boolean) AS "headcount"
+FROM "hr"."employees" AS t0
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > compiles a metric on a different fact dataset 1`] = `
+{
+  "dataset": "orders",
+  "limit": 10,
+  "parameters": [
+    "cancelled",
+    10,
+  ],
+  "sql": "SELECT
+  t0."status" AS "order_status",
+  count(t0."id") FILTER (WHERE t0."status" = $1::text) AS "cancelled_orders"
+FROM "sales"."orders" AS t0
+GROUP BY t0."status"
+ORDER BY "cancelled_orders" DESC
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > compiles a monthly time grain with a bounded date filter 1`] = `
+{
+  "dataset": "order_items",
+  "limit": 100,
+  "parameters": [
+    "cancelled",
+    "2024-01-01",
+    "2024-12-31",
+    100,
+  ],
+  "sql": "SELECT
+  to_char(date_trunc('month', t1."order_date"), 'YYYY-MM-DD') AS "order_date",
+  sum(t0."quantity" * t0."unit_price") FILTER (WHERE t1."status" <> $1::text) AS "revenue"
+FROM "sales"."order_items" AS t0
+LEFT JOIN "sales"."orders" AS t1 ON t1."id" = t0."order_id"
+WHERE t1."order_date" BETWEEN $2::date AND $3::date
+GROUP BY date_trunc('month', t1."order_date")
+ORDER BY "order_date" ASC
+LIMIT $4",
+}
+`;
+
+exports[`QuerySpec compiler > formats a date dimension as YYYY-MM-DD text 1`] = `
+{
+  "dataset": "employees",
+  "limit": 1000,
+  "parameters": [
+    true,
+    1000,
+  ],
+  "sql": "SELECT
+  to_char(t0."hire_date", 'YYYY-MM-DD') AS "hire_date",
+  count(t0."id") FILTER (WHERE t0."is_active" = $1::boolean) AS "headcount"
+FROM "hr"."employees" AS t0
+GROUP BY t0."hire_date"
+ORDER BY "hire_date" ASC
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > joins a parent dataset for a grouped dimension 1`] = `
+{
+  "dataset": "employees",
+  "limit": 10,
+  "parameters": [
+    true,
+    10,
+  ],
+  "sql": "SELECT
+  t1."name" AS "department",
+  count(t0."id") FILTER (WHERE t0."is_active" = $1::boolean) AS "headcount"
+FROM "hr"."employees" AS t0
+LEFT JOIN "hr"."departments" AS t1 ON t1."id" = t0."department_id"
+GROUP BY t1."name"
+ORDER BY "headcount" DESC
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > joins two hops for a metric filter and a product dimension 1`] = `
+{
+  "dataset": "order_items",
+  "limit": 100,
+  "parameters": [
+    "cancelled",
+    100,
+  ],
+  "sql": "SELECT
+  t2."category" AS "product_category",
+  sum(t0."quantity" * t0."unit_price") FILTER (WHERE t1."status" <> $1::text) AS "revenue"
+FROM "sales"."order_items" AS t0
+LEFT JOIN "sales"."orders" AS t1 ON t1."id" = t0."order_id"
+LEFT JOIN "sales"."products" AS t2 ON t2."id" = t0."product_id"
+GROUP BY t2."category"
+ORDER BY "product_category" ASC
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > joins two hops from order items to customers 1`] = `
+{
+  "dataset": "order_items",
+  "limit": 8,
+  "parameters": [
+    "cancelled",
+    8,
+  ],
+  "sql": "SELECT
+  t2."country" AS "customer_country",
+  sum(t0."quantity" * t0."unit_price") FILTER (WHERE t1."status" <> $1::text) AS "revenue"
+FROM "sales"."order_items" AS t0
+LEFT JOIN "sales"."orders" AS t1 ON t1."id" = t0."order_id"
+LEFT JOIN "sales"."customers" AS t2 ON t2."id" = t1."customer_id"
+GROUP BY t2."country"
+ORDER BY "revenue" DESC
+LIMIT $2",
+}
+`;
+
+exports[`QuerySpec compiler > orders query-filter parameters after metric-filter parameters 1`] = `
+{
+  "dataset": "employees",
+  "limit": 50,
+  "parameters": [
+    true,
+    true,
+    50,
+  ],
+  "sql": "SELECT
+  t1."location" AS "location",
+  count(t0."id") FILTER (WHERE t0."is_active" = $1::boolean) AS "headcount"
+FROM "hr"."employees" AS t0
+LEFT JOIN "hr"."departments" AS t1 ON t1."id" = t0."department_id"
+WHERE t0."is_active" = $2::boolean
+GROUP BY t1."location"
+ORDER BY "location" ASC
+LIMIT $3",
+}
+`;

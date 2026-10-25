@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel --if-present dev",
     "db:seed": "docker compose cp sample-data/seed.sql postgres:/tmp/acme-seed.sql && docker compose exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 -f /tmp/acme-seed.sql",
+    "db:seed:semantic": "pnpm --filter core-api seed:semantic",
     "test": "pnpm -r --if-present test",
     "lint": "pnpm -r --if-present lint"
   }

@@ -16,12 +16,9 @@ import {
 import type { Response } from 'express';
 import { ApiErrorDto } from '../common/dto/api-error.dto.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
-import {
-  QueryRequestDto,
-  QueryResultDto,
-  queryRequestSchema,
-} from './query.dto.js';
+import { QueryExecutionResultDto, QuerySpecDto } from './query.dto.js';
 import { QueryService } from './query.service.js';
+import { querySpecSchema, type QuerySpec } from './query-spec.schema.js';
 
 @ApiTags('query')
 @Controller('query')
@@ -31,15 +28,16 @@ export class QueryController {
   @Post('execute')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Execute one guarded, read-only SQL statement',
+    summary: 'Compile and execute a QuerySpec',
     description:
-      'Temporary Phase 2 verification surface. Phase 4 replaces raw SQL with QuerySpec → compiler → guard (D9/D42).',
+      'The request names metrics and dimensions from the saved semantic model. The backend compiles them to one parameterized SELECT, runs the SQL guard, and executes it against the read-only source (D9/D51).',
   })
-  @ApiBody({ type: QueryRequestDto })
-  @ApiOkResponse({ type: QueryResultDto })
+  @ApiBody({ type: QuerySpecDto })
+  @ApiOkResponse({ type: QueryExecutionResultDto })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'The SQL was rejected by validation or the guard',
+    description:
+      'The spec is invalid, a name is unknown, no model is saved, or the compiled SQL was rejected',
     type: ApiErrorDto,
   })
   @ApiResponse({
@@ -58,9 +56,9 @@ export class QueryController {
     type: ApiErrorDto,
   })
   async execute(
-    @Body(new ZodValidationPipe(queryRequestSchema)) body: QueryRequestDto,
+    @Body(new ZodValidationPipe(querySpecSchema)) body: QuerySpec,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<QueryResultDto> {
+  ): Promise<QueryExecutionResultDto> {
     const abort = new AbortController();
 
     // Abort only on a premature disconnect; after a normal response
@@ -69,6 +67,6 @@ export class QueryController {
       if (!response.writableEnded) abort.abort();
     });
 
-    return this.queryService.execute(body.sql, abort.signal);
+    return this.queryService.executeSpec(body, abort.signal);
   }
 }

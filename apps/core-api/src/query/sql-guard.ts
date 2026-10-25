@@ -78,6 +78,17 @@ const FORBIDDEN_FUNCTIONS = [
   'set_config',
 ];
 
+const FORBIDDEN_KEYWORD_SET = new Set(FORBIDDEN_KEYWORDS);
+
+/**
+ * Semantic metric/dimension names become SQL aliases, so the blunt guard would
+ * reject a valid model containing a name like `update` only at query time.
+ * The semantic layer uses this to reject such names when they are saved.
+ */
+export function isForbiddenSqlKeyword(value: string): boolean {
+  return FORBIDDEN_KEYWORD_SET.has(value.toLowerCase());
+}
+
 const KEYWORD_PATTERN = new RegExp(
   `\\b(${FORBIDDEN_KEYWORDS.join('|')})\\b`,
   'i',

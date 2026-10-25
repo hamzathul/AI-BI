@@ -86,3 +86,143 @@ model DbRelation {
   @@index([toColumnId])
   @@map("db_relations")
 }
+
+// ---------------------------------------------------------------------------
+// Semantic layer v0 (Phase 4)
+//
+// One model per deployment (D49). Source objects are referenced by
+// schema/object name, not snapshot IDs, so a metadata re-sync does not break
+// saved semantics (D41). Metric/dimension names are unique inside a model; the
+// service enforces the cross-dataset uniqueness that the schema cannot express.
+// ---------------------------------------------------------------------------
+
+enum JoinType {
+  LEFT
+  INNER
+
+  @@map("join_type")
+}
+
+enum Aggregation {
+  COUNT
+  COUNT_DISTINCT
+  SUM
+  AVG
+  MIN
+  MAX
+
+  @@map("aggregation")
+}
+
+enum FilterOperator {
+  EQ
+  NEQ
+  IN
+  NOT_IN
+  GT
+  GTE
+  LT
+  LTE
+  BETWEEN
+  IS_NULL
+  IS_NOT_NULL
+
+  @@map("filter_operator")
+}
+
+model SemanticModel {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  name        String         @unique
+  description String?
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  datasets    Dataset[]
+  joins       SemanticJoin[]
+
+  @@map("semantic_models")
+}
+
+model Dataset {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  modelId     String         @map("model_id") @db.Uuid
+  model       SemanticModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  name        String
+  schemaName  String         @map("schema_name")
+  objectName  String         @map("object_name")
+  description String?
+  dimensions  Dimension[]
+  metrics     Metric[]
+  joinsFrom   SemanticJoin[] @relation("JoinFrom")
+  joinsTo     SemanticJoin[] @relation("JoinTo")
+
+  @@unique([modelId, name])
+  @@unique([modelId, schemaName, objectName])
+  @@map("datasets")
+}
+
+model Dimension {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  datasetId     String         @map("dataset_id") @db.Uuid
+  dataset       Dataset        @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  name          String
+  columnName    String         @map("column_name")
+  description   String?
+  metricFilters MetricFilter[]
+
+  @@unique([datasetId, name])
+  @@map("dimensions")
+}
+
+model Metric {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  datasetId   String         @map("dataset_id") @db.Uuid
+  dataset     Dataset        @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  name        String
+  aggregation Aggregation
+  expression  String?
+  description String?
+  filters     MetricFilter[]
+
+  @@unique([datasetId, name])
+  @@map("metrics")
+}
+
+// A metric-level filter (D50). It compiles to FILTER (WHERE ...), so
+// "headcount" can mean active employees without every query remembering that.
+model MetricFilter {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  metricId    String         @map("metric_id") @db.Uuid
+  metric      Metric         @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  dimensionId String         @map("dimension_id") @db.Uuid
+  dimension   Dimension      @relation(fields: [dimensionId], references: [id], onDelete: Cascade)
+  operator    FilterOperator
+  value       Json
+  position    Int
+
+  @@unique([metricId, position])
+  @@index([dimensionId])
+  @@map("metric_filters")
+}
+
+// A semantic join follows a discovered FK from the child (from) to the parent
+// (to). The compiler only traverses child -> parent, so aggregates never fan
+// out (D50).
+model SemanticJoin {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  modelId       String        @map("model_id") @db.Uuid
+  model         SemanticModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  name          String
+  fromDatasetId String        @map("from_dataset_id") @db.Uuid
+  fromDataset   Dataset       @relation("JoinFrom", fields: [fromDatasetId], references: [id], onDelete: Cascade)
+  fromColumn    String        @map("from_column")
+  toDatasetId   String        @map("to_dataset_id") @db.Uuid
+  toDataset     Dataset       @relation("JoinTo", fields: [toDatasetId], references: [id], onDelete: Cascade)
+  toColumn      String        @map("to_column")
+  joinType      JoinType      @default(LEFT) @map("join_type")
+
+  @@unique([modelId, name])
+  @@unique([modelId, fromDatasetId, fromColumn, toDatasetId, toColumn])
+  @@index([fromDatasetId])
+  @@index([toDatasetId])
+  @@map("semantic_joins")
+}

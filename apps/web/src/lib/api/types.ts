@@ -18,3 +18,10 @@ export type MetadataColumn = components["schemas"]["MetadataColumnDto"];
 export type MetadataRelation = components["schemas"]["MetadataRelationDto"];
 export type MetadataRelationEndpoint =
   components["schemas"]["MetadataRelationEndpointDto"];
+export type SemanticModel = components["schemas"]["SemanticModelDto"];
+export type SemanticModelResponse =
+  components["schemas"]["SemanticModelResponseDto"];
+export type SemanticValidationResult =
+  components["schemas"]["SemanticValidationResponseDto"];
+export type SemanticExampleResponse =
+  components["schemas"]["SemanticExampleResponseDto"];

@@ -9,6 +9,6 @@ import { SyncService } from './sync.service.js';
   imports: [PrismaModule, ConnectorsModule],
   controllers: [MetadataController],
   providers: [MetadataService, SyncService],
-  exports: [SyncService],
+  exports: [MetadataService, SyncService],
 })
 export class MetadataModule {}

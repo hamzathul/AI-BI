@@ -21,6 +21,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/semantic/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The saved semantic model
+         * @description Returns null before the first save. One model exists per deployment (D49).
+         */
+        get: operations["SemanticController_getModel"];
+        /**
+         * Validate and replace the semantic model
+         * @description The whole document is replaced in one transaction after metadata validation.
+         */
+        put: operations["SemanticController_saveModel"];
+        post?: never;
+        /** Delete the saved semantic model */
+        delete: operations["SemanticController_deleteModel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/semantic/model/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a semantic model without saving it
+         * @description Runs the same structural and metadata checks as PUT, then returns counts.
+         */
+        post: operations["SemanticController_validateModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/semantic/example": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Acme example semantic model
+         * @description HR and sales datasets, filtered metrics, time dimensions, and FK joins.
+         */
+        get: operations["SemanticController_getExample"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/query/execute": {
         parameters: {
             query?: never;
@@ -31,8 +96,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Execute one guarded, read-only SQL statement
-         * @description Temporary Phase 2 verification surface. Phase 4 replaces raw SQL with QuerySpec → compiler → guard (D9/D42).
+         * Compile and execute a QuerySpec
+         * @description The request names metrics and dimensions from the saved semantic model. The backend compiles them to one parameterized SELECT, runs the SQL guard, and executes it against the read-only source (D9/D51).
          */
         post: operations["QueryController_execute"];
         delete?: never;
@@ -209,12 +274,162 @@ export interface components {
             /** @example 2026-10-20T08:15:01.250Z */
             timestamp: string;
         };
-        QueryRequestDto: {
+        SemanticSourceDto: {
+            /** @example hr */
+            schema: string;
+            /** @example employees */
+            object: string;
+        };
+        SemanticDimensionDto: {
+            /** @example department */
+            name: string;
             /**
-             * @description One guarded, read-only SQL statement. Temporary Phase 2 surface; Phase 4 replaces it with QuerySpec.
-             * @example SELECT count(*)::int AS count FROM hr.employees
+             * @description Column name in the source dataset.
+             * @example name
              */
-            sql: string;
+            column: string;
+            /** @example Department name. */
+            description?: string;
+        };
+        SemanticMetricFilterDto: {
+            /** @example order_status */
+            dimension: string;
+            /**
+             * @example neq
+             * @enum {string}
+             */
+            operator: "eq" | "neq" | "in" | "not_in" | "gt" | "gte" | "lt" | "lte" | "between" | "is_null" | "is_not_null";
+            /** @description Bound filter value. Omit for is_null and is_not_null. Arrays are used by in, not_in, and between. */
+            value?: string | number | boolean | string[];
+        };
+        SemanticMetricDto: {
+            /** @example headcount */
+            name: string;
+            /**
+             * @example count
+             * @enum {string}
+             */
+            agg: "count" | "count_distinct" | "sum" | "avg" | "min" | "max";
+            /**
+             * @description Column arithmetic over the metric dataset. Omit for count(*).
+             * @example id
+             */
+            expression?: string;
+            /** @example Active employees. */
+            description?: string;
+            /** @description Metric-level filters compiled as FILTER (WHERE ...). */
+            filters?: components["schemas"]["SemanticMetricFilterDto"][];
+        };
+        SemanticDatasetDto: {
+            /** @example employees */
+            name: string;
+            source: components["schemas"]["SemanticSourceDto"];
+            /** @example One row per employee. */
+            description?: string;
+            dimensions?: components["schemas"]["SemanticDimensionDto"][];
+            metrics?: components["schemas"]["SemanticMetricDto"][];
+        };
+        SemanticJoinEndpointDto: {
+            /** @example employees */
+            dataset: string;
+            /** @example department_id */
+            column: string;
+        };
+        SemanticJoinDto: {
+            /** @example employees_department */
+            name: string;
+            from: components["schemas"]["SemanticJoinEndpointDto"];
+            to: components["schemas"]["SemanticJoinEndpointDto"];
+            /**
+             * @example left
+             * @enum {string}
+             */
+            type?: "left" | "inner";
+        };
+        SemanticModelDto: {
+            /** @example Acme Inc. */
+            name: string;
+            /** @example HR and sales semantics. */
+            description?: string;
+            datasets: components["schemas"]["SemanticDatasetDto"][];
+            joins?: components["schemas"]["SemanticJoinDto"][];
+        };
+        SemanticModelResponseDto: {
+            /** @description The saved model, or null before the first save. */
+            model: components["schemas"]["SemanticModelDto"] | null;
+            /** @example 2026-10-22T15:30:00.000Z */
+            updatedAt: string | null;
+        };
+        SemanticModelSummaryDto: {
+            /** @example 6 */
+            datasets: number;
+            /** @example 11 */
+            dimensions: number;
+            /** @example 11 */
+            metrics: number;
+            /** @example 4 */
+            joins: number;
+        };
+        SemanticValidationResponseDto: {
+            /** @example true */
+            valid: boolean;
+            summary: components["schemas"]["SemanticModelSummaryDto"];
+        };
+        SemanticExampleResponseDto: {
+            model: components["schemas"]["SemanticModelDto"];
+        };
+        QueryTimeGrainDto: {
+            /** @example order_date */
+            dimension: string;
+            /**
+             * @example month
+             * @enum {string}
+             */
+            grain: "day" | "week" | "month" | "quarter" | "year";
+        };
+        QueryFilterDto: {
+            /** @example order_status */
+            dimension: string;
+            /**
+             * @example neq
+             * @enum {string}
+             */
+            operator: "eq" | "neq" | "in" | "not_in" | "gt" | "gte" | "lt" | "lte" | "between" | "is_null" | "is_not_null";
+            /** @description Bound filter value. Omit for is_null and is_not_null. Arrays are used by in, not_in, and between. */
+            value?: string | number | boolean | string[];
+        };
+        QueryOrderByDto: {
+            /** @example revenue */
+            field: string;
+            /**
+             * @example desc
+             * @enum {string}
+             */
+            direction?: "asc" | "desc";
+        };
+        QuerySpecDto: {
+            /**
+             * @description Optional. The metric dataset is used when omitted; when provided it must match.
+             * @example order_items
+             */
+            dataset?: string;
+            /**
+             * @example [
+             *       "revenue"
+             *     ]
+             */
+            metrics: string[];
+            /**
+             * @example [
+             *       "product_category"
+             *     ]
+             */
+            dimensions?: string[];
+            timeGrain?: components["schemas"]["QueryTimeGrainDto"];
+            filters?: components["schemas"]["QueryFilterDto"][];
+            orderBy?: components["schemas"]["QueryOrderByDto"][];
+            /** @example 1000 */
+            limit?: number;
         };
         QueryResultColumnDto: {
             /** @example count */
@@ -222,7 +437,22 @@ export interface components {
             /** @example integer */
             dataType: string;
         };
-        QueryResultDto: {
+        QueryExecutionMetaDto: {
+            /** @example 0b7a7a7e-... */
+            modelId: string;
+            /** @example Acme Inc. */
+            modelName: string;
+            /** @example order_items */
+            dataset: string;
+            /** @example 1000 */
+            limit: number;
+            /**
+             * @description The guarded SQL that was executed, with $n placeholders.
+             * @example SELECT sum(t0."quantity" * t0."unit_price") FILTER (WHERE t1."status" <> $1::text) AS "revenue" FROM ...
+             */
+            compiledSql: string;
+        };
+        QueryExecutionResultDto: {
             columns: components["schemas"]["QueryResultColumnDto"][];
             /** @description Row objects keyed by column name */
             rows: {
@@ -237,6 +467,7 @@ export interface components {
             truncated: boolean;
             /** @example 12 */
             durationMs: number;
+            meta: components["schemas"]["QueryExecutionMetaDto"];
         };
         HealthDto: {
             /**
@@ -378,6 +609,171 @@ export interface operations {
             };
         };
     };
+    SemanticController_getModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemanticModelResponseDto"];
+                };
+            };
+            /** @description The app database could not be read */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SemanticController_saveModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SemanticModelDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemanticModelResponseDto"];
+                };
+            };
+            /** @description The document is invalid or references missing metadata */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SemanticController_deleteModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The model was deleted (or was absent). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SemanticController_validateModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SemanticModelDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemanticValidationResponseDto"];
+                };
+            };
+            /** @description The document is invalid or references missing metadata */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SemanticController_getExample: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemanticExampleResponseDto"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
     QueryController_execute: {
         parameters: {
             query?: never;
@@ -387,7 +783,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["QueryRequestDto"];
+                "application/json": components["schemas"]["QuerySpecDto"];
             };
         };
         responses: {
@@ -396,10 +792,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryResultDto"];
+                    "application/json": components["schemas"]["QueryExecutionResultDto"];
                 };
             };
-            /** @description The SQL was rejected by validation or the guard */
+            /** @description The spec is invalid, a name is unknown, no model is saved, or the compiled SQL was rejected */
             400: {
                 headers: {
                     [name: string]: unknown;

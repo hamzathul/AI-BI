@@ -48,6 +48,8 @@ nvm use 24.22.0                    # activate the project's Node (see README §T
 cp apps/core-api/.env.example apps/core-api/.env  # one-time local config (gitignored)
 pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
+pnpm db:seed                       # load Acme source DB (destructive, dev-only)
+pnpm db:seed:semantic              # sync metadata + save the Acme semantic model
 pnpm dev                           # both apps: web :3000 + api :3001
 pnpm --filter core-api start:dev   # api only (:3001; GET /api/health, docs at /api/docs)
 pnpm --filter core-api test        # api unit tests (Vitest)
@@ -55,7 +57,7 @@ pnpm --filter core-api test:e2e    # api e2e tests (Vitest + supertest)
 pnpm --filter web dev              # web only (:3000; `/` redirects to `/source`)
 pnpm --filter web test             # web unit tests (Vitest + Testing Library)
 pnpm --filter web typecheck        # tsc --noEmit
-pnpm --filter web e2e              # Playwright (needs Docker Postgres + `pnpm db:seed`)
+pnpm --filter web e2e              # Playwright (needs Docker Postgres + seeded Acme source)
 pnpm --filter web api:types        # export OpenAPI then regenerate committed `schema.d.ts`
 ```
 

@@ -80,6 +80,20 @@ describe('PostgresConnector (e2e)', () => {
     }
   });
 
+  it('caps rows and reports truncation', async () => {
+    const result = await source.executeQuery({
+      sql: 'SELECT g FROM generate_series(1, 25) AS g',
+      maxRows: 10,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.rows).toHaveLength(10);
+    expect(result.rowCount).toBe(10);
+    expect(result.truncated).toBe(true);
+    expect(result.rows[0]).toEqual({ g: 1 });
+    expect(result.rows[9]).toEqual({ g: 10 });
+  });
+
   it('times out a slow statement through the server-side timeout', async () => {
     await expect(
       source.executeQuery({

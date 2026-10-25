@@ -34,7 +34,7 @@ Notes:
 
 ## Quickstart
 
-Phases 0–2 are complete. Phase 3's source → sync → metadata browser is implemented; the human review gates (2.10 Swagger, 3.7 browser) are next.
+Phases 0–4 are implemented: source → sync → metadata browser, the semantic model editor, and QuerySpec compilation/execution. Next: review and commit Phase 4, then charts and dashboards (Phase 5). Human review gates 2.10 (Swagger), 3.7 (browser), and 4.6 (QuerySpec walkthrough) remain open.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -46,21 +46,26 @@ cp apps/core-api/.env.example apps/core-api/.env
 # The web app defaults to http://localhost:3001; copy apps/web/.env.example
 # to apps/web/.env.local only if you need to override it.
 
-# 4. Install the workspace
+# 4. Install the workspace and apply app-database migrations
 pnpm install
+pnpm --filter core-api prisma:migrate
 
 # 5. Load the Acme sample source database (destructive, dev-only — re-runnable)
 pnpm db:seed
 
-# 6. Sanity-check the app database
+# 6. Seed the Acme semantic model (builds core-api, syncs metadata, saves the model)
+pnpm db:seed:semantic
+
+# 7. Sanity-check the app database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 
-# 7. Run both apps (web :3000, api :3001)
+# 8. Run both apps (web :3000, api :3001)
 pnpm dev
 # API health + Swagger: http://localhost:3001/api/health, /api/docs
 
-# 8. Browser flow: http://localhost:3000
+# 9. Browser flow: http://localhost:3000
 #    Source → Test connection → Sync metadata → Metadata → hr.employees
+#    Semantic → Load example → Validate → Save model
 ```
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
@@ -72,6 +77,7 @@ Separate processes: `pnpm --filter core-api start:dev` and `pnpm --filter web de
 - The browser calls core-api **directly**; core-api allows the exact `WEB_ORIGIN` (`http://localhost:3000` by default) via CORS (D43). There is no Next.js proxy.
 - `NEXT_PUBLIC_API_BASE_URL` is the API **origin only** (`http://localhost:3001`). Generated Swagger paths already include `/api`, so adding the prefix would duplicate it (D44).
 - Source credentials never reach the browser. `GET /api/source` returns only the database name; connection tests run server-side.
+- The **Semantic** page edits the whole model as JSON. Validate/Save checks every dataset, column, metric expression, metric filter, and join against the latest metadata snapshot; a stale model fails with a readable list of issues. A query playground is deferred to Phase 5.4.
 - API types are generated from the live OpenAPI document:
 
 ```bash
@@ -88,29 +94,34 @@ pnpm --filter web api:types
 | `pnpm --filter core-api test:e2e` | API HTTP/database tests (needs Docker Postgres)            |
 | `pnpm --filter web test`          | Web unit/components (Vitest + Testing Library + jsdom)     |
 | `pnpm --filter web typecheck`     | Web TypeScript (`tsc --noEmit`)                            |
-| `pnpm --filter web e2e`           | Playwright happy path against real core-api + seeded Acme  |
+| `pnpm --filter web e2e`           | Playwright happy paths against real core-api + seeded Acme |
 | `pnpm lint`                       | Workspace lint (oxlint for API, ESLint for web)            |
 
-Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
+Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot; the semantic test saves and removes the example model), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
 
 ## Main API endpoints
 
-| Method | Path                 | Purpose                                        |
-| ------ | -------------------- | ---------------------------------------------- |
-| GET    | `/api/health`        | Liveness                                       |
-| GET    | `/api/source`        | Safe source status + latest sync attempt       |
-| POST   | `/api/source/test`   | Connect + audit the read-only role             |
-| POST   | `/api/source/sync`   | Introspect and replace the metadata snapshot   |
-| GET    | `/api/metadata`      | Stored metadata tree + relation graph          |
-| POST   | `/api/query/execute` | Temporary guarded raw-SQL endpoint (Phase 4)   |
+| Method | Path                           | Purpose                                          |
+| ------ | ------------------------------ | ------------------------------------------------ |
+| GET    | `/api/health`                  | Liveness                                         |
+| GET    | `/api/source`                  | Safe source status + latest sync attempt         |
+| POST   | `/api/source/test`             | Connect + audit the read-only role               |
+| POST   | `/api/source/sync`             | Introspect and replace the metadata snapshot     |
+| GET    | `/api/metadata`                | Stored metadata tree + relation graph            |
+| GET    | `/api/semantic/model`          | Saved semantic model (`null` before first save)  |
+| PUT    | `/api/semantic/model`          | Validate and replace the semantic model          |
+| DELETE | `/api/semantic/model`          | Delete the saved semantic model                  |
+| POST   | `/api/semantic/model/validate` | Validate without saving                          |
+| GET    | `/api/semantic/example`        | The Acme HR + sales example model                |
+| POST   | `/api/query/execute`           | Compile and execute a QuerySpec                  |
 
 Full request/response shapes: `http://localhost:3001/api/docs`.
 
 ## Repo layout
 
 ```
-apps/web          Next.js frontend            (Phase 3)
-apps/core-api     NestJS backend              (Phases 1–2)
+apps/web          Next.js frontend            (Phases 3–4)
+apps/core-api     NestJS backend              (Phases 1–4)
 apps/ai-service   Python/FastAPI + LangGraph  (Phase 6)
 sample-data/      Acme HR + sales seed SQL    (Phase 2)
 docs/             Plan + decision log

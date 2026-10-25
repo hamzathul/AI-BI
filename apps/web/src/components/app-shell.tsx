@@ -1,4 +1,4 @@
-import { Database, Table2 } from "lucide-react";
+import { Braces, Database, Table2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "./nav-link";
 
@@ -24,6 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
           <NavLink href="/metadata" icon={<Table2 className="size-4" />}>
             Metadata
+          </NavLink>
+          <NavLink href="/semantic" icon={<Braces className="size-4" />}>
+            Semantic
           </NavLink>
         </nav>
       </aside>

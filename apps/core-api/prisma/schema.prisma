@@ -226,3 +226,37 @@ model SemanticJoin {
   @@index([toDatasetId])
   @@map("semantic_joins")
 }
+
+// ---------------------------------------------------------------------------
+// Dashboards, manual mode (Phase 5)
+//
+// A dashboard is one versioned document: name, global filters, and widgets. The
+// widget chart is a renderer-agnostic ChartSpec stored as JSONB and validated by
+// Zod on write (D54/D56). `version` powers optimistic concurrency.
+// ---------------------------------------------------------------------------
+
+model Dashboard {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String   @unique
+  version   Int      @default(1)
+  filters   Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  widgets   Widget[]
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  dashboardId String    @map("dashboard_id") @db.Uuid
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  chart       Json
+  layoutX     Int       @map("layout_x")
+  layoutY     Int       @map("layout_y")
+  layoutW     Int       @map("layout_w")
+  layoutH     Int       @map("layout_h")
+
+  @@index([dashboardId])
+  @@map("widgets")
+}

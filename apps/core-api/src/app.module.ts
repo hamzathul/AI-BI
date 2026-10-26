@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ConnectorsModule } from './connectors/connectors.module.js';
 import { validateEnv } from './config/env.validation.js';
+import { ChartsModule } from './charts/charts.module.js';
+import { DashboardsModule } from './dashboards/dashboards.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MetadataModule } from './metadata/metadata.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -20,6 +22,8 @@ import { SourceModule } from './source/source.module.js';
     MetadataModule,
     SemanticModule,
     QueryModule,
+    ChartsModule,
+    DashboardsModule,
     HealthModule,
     SourceModule,
   ],

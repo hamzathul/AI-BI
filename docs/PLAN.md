@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phase 4 implementation complete (4.1–4.6). Next: review the Phase 4 diff, walk through the semantic editor + QuerySpec flow, then commit. Older review gates 2.10 (Swagger) and 3.7 (browser) remain open.**
+> **Current status: Phases 0–4 complete and committed; Phase 5 (charts & dashboards, manual mode) built end-to-end and green — the 5.8 review gate is open. Next: review + commit Phase 5, then Phase 6 — AI service v0.**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -142,7 +142,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 - [x] **2.7 Introspect: keys & relations** · *Build:* PK/FK extraction → relationship DTOs (the join graph the AI will use later). *Done:* FK graph correct for Acme.
 - [x] **2.8 Metadata storage + sync** · *Build:* app tables (`db_objects`, `db_columns`, `db_relations`; `sync_runs` exists from 2.1b), full sync service, `POST /api/source/sync`, metadata read APIs, sync status/timestamps. *Done:* sync visible in API + browsable metadata.
 - [x] **2.9 Safe query execution** · *Build:* SQL guard (single statement only, `SELECT`-only, comments/`;` rejected, keyword denylist), `statement_timeout`, **row cap 10k**, cancellation, normalized errors. *Verify:* guard unit tests (DROP/UPDATE/multi-statement rejected); integration executes aggregate query. *Done:* only safe reads can leave the API.
-- [ ] **2.10 Review gate** · Walk through Phase 2 code together; you try the endpoints in `/api/docs` yourself.
+- [x] **2.10 Review gate** · Walk through Phase 2 code together; you try the endpoints in `/api/docs` yourself.
 
 **Phase 2 done when:** source test → sync → metadata → guarded query, all working against Acme, all tested; Prisma wired to the app DB.
 
@@ -159,7 +159,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 - [x] **3.4 Test & Sync actions** · *Build:* Test connection + Sync metadata mutations, busy states, sonner toasts, 1.5 s source polling only while sync is in flight, source/metadata cache invalidation, connector-code display. *Done:* source test + sync feedback in the UI; Browse metadata appears after success.
 - [x] **3.5 Metadata browser** · *Build:* pure metadata index (counts, PK/FK lookups, incoming/outgoing relations); schema → object master list; column table with type/nullability/default/comment and PK/FK badges; relations panel. *Done:* you can explore Acme visually, including the self-relation.
 - [x] **3.6 Playwright setup + first e2e** · *Build:* Playwright config with both dev servers; serial happy path: test source → sync → see "employees" → `salary`/`numeric(10,2)`/FK. *Learn:* e2e vs unit; selectors that don't break. *Done:* `pnpm --filter web e2e` green (1 test), web build/lint/typecheck green.
-- [ ] **3.7 Review gate** · Browser walkthrough of the full source → sync → metadata flow; review the web data layer and state handling; then commit.
+- [x] **3.7 Review gate** · Browser walkthrough of the full source → sync → metadata flow; review the web data layer and state handling; then commit.
 
 **Phase 3 done when:** browser happy path complete; e2e green; you can trace the full data flow yourself and have reviewed/committed the code.
 
@@ -186,15 +186,19 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** build & save dashboards by hand — this is the canvas the AI will later drive.
 **You'll learn:** ECharts theming/API, renderer-agnostic specs, optimistic concurrency, grid layouts.
 
-- [ ] **5.1 ChartSpec v0** · *Build:* Zod spec (type, title, querySpec ref, encodings bound to result columns, number/date formats). **No ECharts details inside, ever.** *Verify:* validation tests. *Done:* spec schema reviewed together.
-- [ ] **5.2 `<ChartRenderer/>`** · *Build:* owned ECharts wrapper: theme from design tokens, lazy-loaded, resize handling, loading/error states. *Learn:* ECharts `setOption`, themes, event wiring. *Done:* renders a hardcoded demo chart beautifully.
-- [ ] **5.3 Adapters: table, KPI, bar, line** · *Build:* pure functions ChartSpec(+rows) → ECharts option; unit tests. *Done:* four chart types in the registry.
-- [ ] **5.4 Explore page** · *Build:* manual builder — pick model, metrics/dimensions/filters → chart renders. No saving yet. *Done:* you can explore Acme data visually.
-- [ ] **5.5 Dashboard persistence** · *Build:* `dashboards` + `widgets` tables (spec JSONB + `version` int), CRUD + **optimistic concurrency** (409 on stale version) + tests. *Done:* APIs versioned and tested.
-- [ ] **5.6 Dashboard canvas** · *Build:* react-grid-layout canvas: add/edit/remove/save/reload widgets. *Done:* a dashboard survives reload.
-- [ ] **5.7 Global filters v0** · *Build:* dashboard-level date range + one categorical filter; applied server-side by rewriting widget QuerySpecs and re-executing; filter bar UI; tests. *Learn:* why filters are first-class in the spec. *Done:* "filter everything to Engineering dept" works manually.
+- [x] **5.1 ChartSpec v0** · *Build:* Zod spec (type, title, querySpec ref, encodings bound to result columns, number/date formats). **No ECharts details inside, ever.** *Verify:* validation tests. *Done:* spec schema reviewed together.
+- [x] **5.2 `<ChartRenderer/>`** · *Build:* owned ECharts wrapper: theme from design tokens, lazy-loaded, resize handling, loading/error states. *Learn:* ECharts `setOption`, themes, event wiring. *Done:* renders a hardcoded demo chart beautifully.
+- [x] **5.3 Adapters: table, KPI, bar, line** · *Build:* pure functions ChartSpec(+rows) → ECharts option; unit tests. *Done:* four chart types in the registry.
+- [x] **5.4 Explore page** · *Build:* manual builder — pick model, metrics/dimensions/filters → chart renders. No saving yet. *Done:* you can explore Acme data visually.
+- [x] **5.5 Dashboard persistence** · *Build:* `dashboards` + `widgets` tables (spec JSONB + `version` int), CRUD + **optimistic concurrency** (409 on stale version) + tests. *Done:* APIs versioned and tested.
+- [x] **5.6 Dashboard canvas** · *Build:* react-grid-layout canvas: add/edit/remove/save/reload widgets. *Done:* a dashboard survives reload.
+- [x] **5.7 Global filters v0** · *Build:* dashboard-level date range + one categorical filter; applied server-side by rewriting widget QuerySpecs and re-executing; filter bar UI; tests. *Learn:* why filters are first-class in the spec. *Done:* "filter everything to Engineering dept" works manually.
 
 **Phase 5 done when:** hand-built 4-widget dashboard with filters persists & reloads; every adapter unit-tested; specs are renderer-agnostic. **Review gate here** (chart spec + patch model walkthrough).
+
+- [ ] **5.8 Review gate** · Walk through ChartSpec v0, the batch endpoint, and the versioned dashboard document; review the explore/canvas code; then commit.
+
+**Phase 5 status:** every step built and green; widget count is capped at 12 rather than fixed at 4, and the review gate is open.
 
 ---
 
@@ -293,3 +297,5 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-20 | 3 | 3.5 | Metadata browser: pure index (counts, FK-by-column, directional relations), schema/object master list (default first TABLE), column table with type/nullability/default/comment + PK/FK badges, relations panel (D48) |
 | 2026-10-20 | 3 | 3.6 | Playwright config (two web servers, chromium, workers=1) + serial e2e: `/` → source → test → sync → metadata → employees salary/type/FK; **44 core-api e2e / 21 web unit / 1 Playwright green**, web build/lint/typecheck clean (D47). Review gate 3.7 open |
 | 2026-10-23 | 4 | 4.1–4.6 | Semantic schema + migration (`semantic_models`, `datasets`, `dimensions`, `metrics`, `metric_filters`, `semantic_joins`); whole-document API (`GET`/`PUT`/`DELETE /api/semantic/model`, `POST .../validate`, `GET /api/semantic/example`) with metadata/FK/expression validation; QuerySpec v0 + parameterized compiler (8 golden snapshots); `POST /api/query/execute` replaces raw SQL; Acme seed (6 datasets, 11 dimensions, 11 metrics, 4 joins) + `/semantic` JSON editor; **196 core-api unit / 55 e2e / 26 web unit / 2 Playwright green**, core-api build/lint + web build/lint/typecheck clean (D49–D53). Human review/commit next |
+| 2026-10-25 | 2–4 | gates | Review gates closed: 2.10 (Swagger endpoint walkthrough), 3.7 (browser source → sync → metadata + web data layer), Phase 4 gate (semantic editor + QuerySpec compile/execute flow). **Phases 0–4 complete and committed**; next is Phase 5.1 |
+| 2026-10-26 | 5 | 5.1–5.7 | ChartSpec v0 (Zod, embeds its QuerySpec, encodings validated against result columns, `table`/`kpi`/`bar`/`line`, semantic number/date formats) + `POST /api/charts/execute` batches (≤12 charts, 3 at a time, per-chart error isolation); versioned dashboards (`dashboards` + `widgets`, whole-document `PUT` + `expectedVersion` → 409, migration `20261026142336_add_dashboards`) + v0 dashboard filters rewritten server-side (`dateRange` + one categorical, warnings for unreachable dimensions); web: pure adapters/format/pivot + draft bridge, ECharts 6.1.0 client-only wrapper, form-based `/explore`, react-grid-layout canvas with add/edit/remove/save/reload and 409 reload UX, filter bar; **227 core-api unit / 75 e2e / 56 web unit / 3 Playwright green**, lint + typecheck clean (D54–D57). 5.8 review/commit next |

@@ -106,6 +106,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/charts/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compile and execute dashboard charts
+         * @description Each chart owns a QuerySpec. Dashboard filters are merged into that spec server-side, then every chart is compiled, guarded, and executed against the read-only source. A failing chart returns its own error instead of failing the batch (D55).
+         */
+        post: operations["ChartsController_execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved dashboards */
+        get: operations["DashboardsController_list"];
+        put?: never;
+        /** Create an empty dashboard */
+        post: operations["DashboardsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dashboards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One dashboard with its widgets */
+        get: operations["DashboardsController_get"];
+        /**
+         * Replace a dashboard (optimistic concurrency)
+         * @description Name, filters, and widgets are replaced in one transaction. If `expectedVersion` is stale the request fails with 409 and nothing is written (D56).
+         */
+        put: operations["DashboardsController_replace"];
+        post?: never;
+        /** Delete a dashboard and its widgets */
+        delete: operations["DashboardsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -469,6 +529,267 @@ export interface components {
             durationMs: number;
             meta: components["schemas"]["QueryExecutionMetaDto"];
         };
+        ChartNumberFormatDto: {
+            /**
+             * @example plain
+             * @enum {string}
+             */
+            style: "plain" | "percent" | "currency";
+            /**
+             * @description ISO 4217 code. Only valid with the currency style.
+             * @example USD
+             */
+            currency?: string;
+            /** @example 2 */
+            decimals?: number;
+        };
+        ChartDateFormatDto: {
+            /**
+             * @example month
+             * @enum {string}
+             */
+            style: "iso" | "month" | "monthYear";
+        };
+        ChartFormatDto: {
+            number?: components["schemas"]["ChartNumberFormatDto"];
+            date?: components["schemas"]["ChartDateFormatDto"];
+        };
+        TableChartDto: {
+            /**
+             * @description Spec version. Bumped only when persisted charts change shape.
+             * @example 1
+             * @enum {number}
+             */
+            v: 1;
+            /** @example Revenue by category */
+            title: string;
+            /** @description The query that feeds this chart. */
+            query: components["schemas"]["QuerySpecDto"];
+            format?: components["schemas"]["ChartFormatDto"];
+            /**
+             * @example table
+             * @enum {string}
+             */
+            type: "table";
+            /**
+             * @description Result columns to show, in order.
+             * @example [
+             *       "product_category",
+             *       "revenue"
+             *     ]
+             */
+            columns: string[];
+        };
+        KpiChartDto: {
+            /**
+             * @description Spec version. Bumped only when persisted charts change shape.
+             * @example 1
+             * @enum {number}
+             */
+            v: 1;
+            /** @example Revenue by category */
+            title: string;
+            /** @description The query that feeds this chart. */
+            query: components["schemas"]["QuerySpecDto"];
+            format?: components["schemas"]["ChartFormatDto"];
+            /**
+             * @example kpi
+             * @enum {string}
+             */
+            type: "kpi";
+            /**
+             * @description Metric column whose first row is the number.
+             * @example headcount
+             */
+            value: string;
+        };
+        BarChartDto: {
+            /**
+             * @description Spec version. Bumped only when persisted charts change shape.
+             * @example 1
+             * @enum {number}
+             */
+            v: 1;
+            /** @example Revenue by category */
+            title: string;
+            /** @description The query that feeds this chart. */
+            query: components["schemas"]["QuerySpecDto"];
+            format?: components["schemas"]["ChartFormatDto"];
+            /**
+             * @example bar
+             * @enum {string}
+             */
+            type: "bar";
+            /** @example product_category */
+            x: string;
+            /** @example revenue */
+            y: string;
+            /**
+             * @description Optional dimension that splits the bars into series.
+             * @example order_status
+             */
+            series?: string;
+            /** @example false */
+            stacked?: boolean;
+        };
+        LineChartDto: {
+            /**
+             * @description Spec version. Bumped only when persisted charts change shape.
+             * @example 1
+             * @enum {number}
+             */
+            v: 1;
+            /** @example Revenue by category */
+            title: string;
+            /** @description The query that feeds this chart. */
+            query: components["schemas"]["QuerySpecDto"];
+            format?: components["schemas"]["ChartFormatDto"];
+            /**
+             * @example line
+             * @enum {string}
+             */
+            type: "line";
+            /** @example order_date */
+            x: string;
+            /** @example revenue */
+            y: string;
+            /** @example department */
+            series?: string;
+            /** @example true */
+            smooth?: boolean;
+            /** @example false */
+            area?: boolean;
+        };
+        DashboardDateRangeDto: {
+            /**
+             * @description A date or timestamp dimension from the semantic model.
+             * @example order_date
+             */
+            dimension: string;
+            /** @example 2025-01-01 */
+            from?: string;
+            /** @example 2025-12-31 */
+            to?: string;
+        };
+        DashboardCategoricalFilterDto: {
+            /** @example department */
+            dimension: string;
+            /**
+             * @description A string becomes an eq filter; an array becomes an in filter.
+             * @example Engineering
+             */
+            value: string | string[];
+        };
+        DashboardFiltersDto: {
+            dateRange?: components["schemas"]["DashboardDateRangeDto"];
+            categorical?: components["schemas"]["DashboardCategoricalFilterDto"];
+        };
+        ChartExecutionRequestItemDto: {
+            /**
+             * @description Widget id from the canvas. Echoed so results can be matched to widgets.
+             * @example 0b7a7a7e-4f5a-4a1a-9d0e-2f0c9b7d1a11
+             */
+            id: string;
+            /** @description Renderer-agnostic chart definition (chart types: table, kpi, bar, line). Encodings point at result columns; no renderer options are stored. */
+            chart: components["schemas"]["TableChartDto"] | components["schemas"]["KpiChartDto"] | components["schemas"]["BarChartDto"] | components["schemas"]["LineChartDto"];
+        };
+        ChartExecutionRequestDto: {
+            /** @description Dashboard-level filters. The server rewrites each chart query before executing it. */
+            filters?: components["schemas"]["DashboardFiltersDto"];
+            charts: components["schemas"]["ChartExecutionRequestItemDto"][];
+        };
+        ChartExecutionErrorDto: {
+            /** @example Unknown metric "profit". */
+            message: string;
+            /** @example TIMEOUT */
+            code?: string;
+        };
+        ChartExecutionResultItemDto: {
+            id: string;
+            /** @example true */
+            ok: boolean;
+            /**
+             * @description True when at least one dashboard filter applies to this chart.
+             * @example true
+             */
+            filterApplied: boolean;
+            /**
+             * @example [
+             *       "Filter \"department\" does not reach this chart, so it was not applied."
+             *     ]
+             */
+            warnings: string[];
+            /** @description The effective query, with dashboard filters merged in. */
+            query?: components["schemas"]["QuerySpecDto"];
+            result?: components["schemas"]["QueryExecutionResultDto"];
+            error?: components["schemas"]["ChartExecutionErrorDto"];
+        };
+        ChartExecutionResponseDto: {
+            results: components["schemas"]["ChartExecutionResultItemDto"][];
+            warnings: string[];
+        };
+        DashboardSummaryDto: {
+            /** @example 0b7a7a7e-4f5a-4a1a-9d0e-2f0c9b7d1a11 */
+            id: string;
+            /** @example Revenue overview */
+            name: string;
+            /** @example 4 */
+            widgetCount: number;
+            /**
+             * @description Optimistic-concurrency version.
+             * @example 3
+             */
+            version: number;
+            /** @example 2026-10-26T10:00:00.000Z */
+            updatedAt: string;
+        };
+        DashboardListDto: {
+            dashboards: components["schemas"]["DashboardSummaryDto"][];
+        };
+        CreateDashboardDto: {
+            /** @example Revenue overview */
+            name: string;
+        };
+        WidgetLayoutDto: {
+            /** @example 0 */
+            x: number;
+            /** @example 0 */
+            y: number;
+            /** @example 6 */
+            w: number;
+            /** @example 5 */
+            h: number;
+        };
+        DashboardWidgetDto: {
+            /** @example 0b7a7a7e-4f5a-4a1a-9d0e-2f0c9b7d1a11 */
+            id: string;
+            /** @description Renderer-agnostic chart definition (chart types: table, kpi, bar, line). Encodings point at result columns; no renderer options are stored. */
+            chart: components["schemas"]["TableChartDto"] | components["schemas"]["KpiChartDto"] | components["schemas"]["BarChartDto"] | components["schemas"]["LineChartDto"];
+            layout: components["schemas"]["WidgetLayoutDto"];
+        };
+        DashboardDto: {
+            /** @example 0b7a7a7e-4f5a-4a1a-9d0e-2f0c9b7d1a11 */
+            id: string;
+            /** @example Revenue overview */
+            name: string;
+            /** @example 3 */
+            version: number;
+            /** @description Empty object when the dashboard has no global filters. */
+            filters: components["schemas"]["DashboardFiltersDto"];
+            widgets: components["schemas"]["DashboardWidgetDto"][];
+            /** @example 2026-10-26T10:00:00.000Z */
+            createdAt: string;
+            /** @example 2026-10-26T10:00:00.000Z */
+            updatedAt: string;
+        };
+        DashboardWriteDto: {
+            /** @example 3 */
+            expectedVersion: number;
+            /** @example Revenue overview */
+            name: string;
+            filters?: components["schemas"]["DashboardFiltersDto"];
+            widgets: components["schemas"]["DashboardWidgetDto"][];
+        };
         HealthDto: {
             /**
              * @description Service liveness
@@ -824,6 +1145,197 @@ export interface operations {
             };
             /** @description The query timed out or was canceled */
             504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    ChartsController_execute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChartExecutionRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChartExecutionResponseDto"];
+                };
+            };
+            /** @description A chart or filter is invalid, a dashboard filter names an unknown dimension, or no semantic model is saved */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    DashboardsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardListDto"];
+                };
+            };
+        };
+    };
+    DashboardsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDashboardDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardDto"];
+                };
+            };
+            /** @description A dashboard with this name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    DashboardsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    DashboardsController_replace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardWriteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            /** @description The dashboard changed since `expectedVersion` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    DashboardsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { SourceConnectorService } from '../connectors/source-connector.service.js';
-import { SemanticService } from '../semantic/semantic.service.js';
+import {
+  SemanticService,
+  type SemanticCatalogContext,
+} from '../semantic/semantic.service.js';
 import { compileQuery, QueryCompilationError } from './query-compiler.js';
 import type { QueryExecutionResultDto } from './query.dto.js';
 import { QUERY_MAX_ROWS, QUERY_TIMEOUT_MS } from './query.constants.js';
@@ -35,6 +38,18 @@ export class QueryService {
       );
     }
 
+    return this.executeWithCatalog(spec, context, signal);
+  }
+
+  /**
+   * Same pipeline as `executeSpec`, reusing a catalog the caller already loaded.
+   * A chart batch runs several specs against one model (D55).
+   */
+  async executeWithCatalog(
+    spec: QuerySpec,
+    context: SemanticCatalogContext,
+    signal?: AbortSignal,
+  ): Promise<QueryExecutionResultDto> {
     let compiled;
 
     try {

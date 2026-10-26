@@ -25,3 +25,37 @@ export type SemanticValidationResult =
   components["schemas"]["SemanticValidationResponseDto"];
 export type SemanticExampleResponse =
   components["schemas"]["SemanticExampleResponseDto"];
+
+export type QuerySpec = components["schemas"]["QuerySpecDto"];
+export type QueryFilter = components["schemas"]["QueryFilterDto"];
+export type QueryOrder = components["schemas"]["QueryOrderByDto"];
+export type TimeGrain = components["schemas"]["QueryTimeGrainDto"]["grain"];
+export type QueryResult = components["schemas"]["QueryExecutionResultDto"];
+export type QueryResultColumn = components["schemas"]["QueryResultColumnDto"];
+
+export type ChartFormat = components["schemas"]["ChartFormatDto"];
+export type ChartNumberFormat = components["schemas"]["ChartNumberFormatDto"];
+export type NumberStyle = ChartNumberFormat["style"];
+export type DateStyle = components["schemas"]["ChartDateFormatDto"]["style"];
+
+export type TableChart = components["schemas"]["TableChartDto"];
+export type KpiChart = components["schemas"]["KpiChartDto"];
+export type BarChart = components["schemas"]["BarChartDto"];
+export type LineChart = components["schemas"]["LineChartDto"];
+export type ChartSpec = TableChart | KpiChart | BarChart | LineChart;
+export type ChartType = ChartSpec["type"];
+
+export type ChartExecutionRequest =
+  components["schemas"]["ChartExecutionRequestDto"];
+export type ChartExecutionResponse =
+  components["schemas"]["ChartExecutionResponseDto"];
+export type ChartExecutionResultItem =
+  components["schemas"]["ChartExecutionResultItemDto"];
+
+export type Dashboard = components["schemas"]["DashboardDto"];
+export type DashboardSummary = components["schemas"]["DashboardSummaryDto"];
+export type DashboardList = components["schemas"]["DashboardListDto"];
+export type DashboardWidget = components["schemas"]["DashboardWidgetDto"];
+export type WidgetLayout = components["schemas"]["WidgetLayoutDto"];
+export type DashboardFilters = components["schemas"]["DashboardFiltersDto"];
+export type DashboardWrite = components["schemas"]["DashboardWriteDto"];

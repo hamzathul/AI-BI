@@ -8,5 +8,6 @@ import { QueryService } from './query.service.js';
   imports: [ConnectorsModule, SemanticModule],
   controllers: [QueryController],
   providers: [QueryService],
+  exports: [QueryService],
 })
 export class QueryModule {}

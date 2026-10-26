@@ -34,7 +34,7 @@ Notes:
 
 ## Quickstart
 
-Phases 0–4 are implemented: source → sync → metadata browser, the semantic model editor, and QuerySpec compilation/execution. Next: review and commit Phase 4, then charts and dashboards (Phase 5). Human review gates 2.10 (Swagger), 3.7 (browser), and 4.6 (QuerySpec walkthrough) remain open.
+Phases 0–5 are implemented: source → sync → metadata browser, the semantic model editor, QuerySpec compilation/execution, charts (table/KPI/bar/line), and persisted dashboards with filters. Next: the Phase 5 review gate, then the AI service (Phase 6).
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -66,6 +66,7 @@ pnpm dev
 # 9. Browser flow: http://localhost:3000
 #    Source → Test connection → Sync metadata → Metadata → hr.employees
 #    Semantic → Load example → Validate → Save model
+#    Explore → build a chart · Dashboards → New dashboard → Add widget → Save
 ```
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
@@ -77,7 +78,9 @@ Separate processes: `pnpm --filter core-api start:dev` and `pnpm --filter web de
 - The browser calls core-api **directly**; core-api allows the exact `WEB_ORIGIN` (`http://localhost:3000` by default) via CORS (D43). There is no Next.js proxy.
 - `NEXT_PUBLIC_API_BASE_URL` is the API **origin only** (`http://localhost:3001`). Generated Swagger paths already include `/api`, so adding the prefix would duplicate it (D44).
 - Source credentials never reach the browser. `GET /api/source` returns only the database name; connection tests run server-side.
-- The **Semantic** page edits the whole model as JSON. Validate/Save checks every dataset, column, metric expression, metric filter, and join against the latest metadata snapshot; a stale model fails with a readable list of issues. A query playground is deferred to Phase 5.4.
+- The **Semantic** page edits the whole model as JSON. Validate/Save checks every dataset, column, metric expression, metric filter, and join against the latest metadata snapshot; a stale model fails with a readable list of issues.
+- The **Explore** page is a form-based chart builder (metric, dimension, optional series, time grain, formats) with a live preview; it never saves. A chart is a ChartSpec — a QuerySpec plus encodings and formats — so the same spec renders on a dashboard.
+- **Dashboards** are one versioned document (name, filters, widgets + layout). The canvas saves with the version you loaded and reports a conflict instead of overwriting a newer save. Date-range and categorical filters are part of the document and are applied server-side to every widget that can reach the dimension.
 - API types are generated from the live OpenAPI document:
 
 ```bash
@@ -97,31 +100,37 @@ pnpm --filter web api:types
 | `pnpm --filter web e2e`           | Playwright happy paths against real core-api + seeded Acme |
 | `pnpm lint`                       | Workspace lint (oxlint for API, ESLint for web)            |
 
-Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot; the semantic test saves and removes the example model), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
+Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot; the semantic and dashboard tests create and remove their own model/dashboards), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
 
 ## Main API endpoints
 
-| Method | Path                           | Purpose                                          |
-| ------ | ------------------------------ | ------------------------------------------------ |
-| GET    | `/api/health`                  | Liveness                                         |
-| GET    | `/api/source`                  | Safe source status + latest sync attempt         |
-| POST   | `/api/source/test`             | Connect + audit the read-only role               |
-| POST   | `/api/source/sync`             | Introspect and replace the metadata snapshot     |
-| GET    | `/api/metadata`                | Stored metadata tree + relation graph            |
-| GET    | `/api/semantic/model`          | Saved semantic model (`null` before first save)  |
-| PUT    | `/api/semantic/model`          | Validate and replace the semantic model          |
-| DELETE | `/api/semantic/model`          | Delete the saved semantic model                  |
-| POST   | `/api/semantic/model/validate` | Validate without saving                          |
-| GET    | `/api/semantic/example`        | The Acme HR + sales example model                |
-| POST   | `/api/query/execute`           | Compile and execute a QuerySpec                  |
+| Method | Path                           | Purpose                                           |
+| ------ | ------------------------------ | ------------------------------------------------- |
+| GET    | `/api/health`                  | Liveness                                          |
+| GET    | `/api/source`                  | Safe source status + latest sync attempt          |
+| POST   | `/api/source/test`             | Connect + audit the read-only role                |
+| POST   | `/api/source/sync`             | Introspect and replace the metadata snapshot      |
+| GET    | `/api/metadata`                | Stored metadata tree + relation graph             |
+| GET    | `/api/semantic/model`          | Saved semantic model (`null` before first save)   |
+| PUT    | `/api/semantic/model`          | Validate and replace the semantic model           |
+| DELETE | `/api/semantic/model`          | Delete the saved semantic model                   |
+| POST   | `/api/semantic/model/validate` | Validate without saving                           |
+| GET    | `/api/semantic/example`        | The Acme HR + sales example model                 |
+| POST   | `/api/query/execute`           | Compile and execute a QuerySpec                   |
+| POST   | `/api/charts/execute`          | Execute up to 12 charts (one batch per dashboard) |
+| GET    | `/api/dashboards`              | List dashboards                                   |
+| POST   | `/api/dashboards`              | Create an empty dashboard                         |
+| GET    | `/api/dashboards/{id}`         | One dashboard document (widgets + filters)        |
+| PUT    | `/api/dashboards/{id}`         | Replace with `expectedVersion` (409 when stale)   |
+| DELETE | `/api/dashboards/{id}`         | Delete a dashboard                                |
 
 Full request/response shapes: `http://localhost:3001/api/docs`.
 
 ## Repo layout
 
 ```
-apps/web          Next.js frontend            (Phases 3–4)
-apps/core-api     NestJS backend              (Phases 1–4)
+apps/web          Next.js frontend            (Phases 3–5)
+apps/core-api     NestJS backend              (Phases 1–5)
 apps/ai-service   Python/FastAPI + LangGraph  (Phase 6)
 sample-data/      Acme HR + sales seed SQL    (Phase 2)
 docs/             Plan + decision log

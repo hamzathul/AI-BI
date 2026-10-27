@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phases 0–4 complete and committed; Phase 5 (charts & dashboards, manual mode) built end-to-end and green — the 5.8 review gate is open. Next: review + commit Phase 5, then Phase 6 — AI service v0.**
+> **Current status: Phases 0–5 complete and committed (review gate 5.8 closed). Next: Phase 6.0 — AI service v0 (Python toolchain).**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -196,9 +196,9 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 
 **Phase 5 done when:** hand-built 4-widget dashboard with filters persists & reloads; every adapter unit-tested; specs are renderer-agnostic. **Review gate here** (chart spec + patch model walkthrough).
 
-- [ ] **5.8 Review gate** · Walk through ChartSpec v0, the batch endpoint, and the versioned dashboard document; review the explore/canvas code; then commit.
+- [x] **5.8 Review gate** · Walk through ChartSpec v0, the batch endpoint, and the versioned dashboard document; review the explore/canvas code; then commit.
 
-**Phase 5 status:** every step built and green; widget count is capped at 12 rather than fixed at 4, and the review gate is open.
+**Phase 5 status:** complete and committed (`c25b369`); every step built and green; widget count is capped at 12 rather than fixed at 4.
 
 ---
 
@@ -299,3 +299,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-23 | 4 | 4.1–4.6 | Semantic schema + migration (`semantic_models`, `datasets`, `dimensions`, `metrics`, `metric_filters`, `semantic_joins`); whole-document API (`GET`/`PUT`/`DELETE /api/semantic/model`, `POST .../validate`, `GET /api/semantic/example`) with metadata/FK/expression validation; QuerySpec v0 + parameterized compiler (8 golden snapshots); `POST /api/query/execute` replaces raw SQL; Acme seed (6 datasets, 11 dimensions, 11 metrics, 4 joins) + `/semantic` JSON editor; **196 core-api unit / 55 e2e / 26 web unit / 2 Playwright green**, core-api build/lint + web build/lint/typecheck clean (D49–D53). Human review/commit next |
 | 2026-10-25 | 2–4 | gates | Review gates closed: 2.10 (Swagger endpoint walkthrough), 3.7 (browser source → sync → metadata + web data layer), Phase 4 gate (semantic editor + QuerySpec compile/execute flow). **Phases 0–4 complete and committed**; next is Phase 5.1 |
 | 2026-10-26 | 5 | 5.1–5.7 | ChartSpec v0 (Zod, embeds its QuerySpec, encodings validated against result columns, `table`/`kpi`/`bar`/`line`, semantic number/date formats) + `POST /api/charts/execute` batches (≤12 charts, 3 at a time, per-chart error isolation); versioned dashboards (`dashboards` + `widgets`, whole-document `PUT` + `expectedVersion` → 409, migration `20261026142336_add_dashboards`) + v0 dashboard filters rewritten server-side (`dateRange` + one categorical, warnings for unreachable dimensions); web: pure adapters/format/pivot + draft bridge, ECharts 6.1.0 client-only wrapper, form-based `/explore`, react-grid-layout canvas with add/edit/remove/save/reload and 409 reload UX, filter bar; **227 core-api unit / 75 e2e / 56 web unit / 3 Playwright green**, lint + typecheck clean (D54–D57). 5.8 review/commit next |
+| 2026-10-27 | 5 | 5.8 | Phase 5 review gate closed: ChartSpec v0, batch execute endpoint, and versioned dashboard document walked through; explore/canvas code reviewed; Phase 5 committed (`c25b369`). **Phases 0–5 complete and committed**; next is Phase 6.0 |

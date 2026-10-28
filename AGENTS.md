@@ -36,8 +36,8 @@ A developer **new to NestJS and several of these technologies**, learning as we 
 
 - Runtime: Node 24 LTS, pnpm workspaces, Docker (Postgres 18)
 - `apps/core-api`: NestJS 12 (ESM) + Prisma 7.10.1 + Vitest/supertest, Swagger at `/api/docs`
-- `apps/web`: Next.js 16.4 App Router + Tailwind 4 + shadcn/ui + TanStack Query v5 + `openapi-fetch` generated client + sonner (RHF/Zod and ECharts arrive later)
-- `apps/ai-service` (Phase 6): Python + uv + FastAPI + Pydantic v2 + LangGraph; LLM SDK only in `llm.py`
+- `apps/web`: Next.js 16.4 App Router + Tailwind 4 + shadcn/ui + TanStack Query v5 + `openapi-fetch` generated client + sonner + ECharts 6/react-grid-layout (RHF/Zod when forms need it)
+- `apps/ai-service` (Phase 6): Python 3.14 (uv-managed) + uv 0.11 + FastAPI + Pydantic v2; LangGraph arrives in 6.3; LLM SDK only in `llm.py`
 - `sample-data/`: Acme HR + sales seed for the practice database
 
 ## Commands
@@ -50,7 +50,12 @@ pnpm install                       # workspace install
 docker compose up -d               # local Postgres 18 (container aibi-postgres, host port 5433)
 pnpm db:seed                       # load Acme source DB (destructive, dev-only)
 pnpm db:seed:semantic              # sync metadata + save the Acme semantic model
-pnpm dev                           # both apps: web :3000 + api :3001
+pnpm dev                           # web :3000 + api :3001
+pnpm ai:install                    # uv sync: create .venv, install Python deps
+pnpm ai:dev                        # ai-service only (:8000; GET /health, docs at /docs)
+pnpm ai:test                       # ai-service unit tests (pytest)
+pnpm ai:lint                       # ruff check + format check
+pnpm ai:format                     # ruff format
 pnpm --filter core-api start:dev   # api only (:3001; GET /api/health, docs at /api/docs)
 pnpm --filter core-api test        # api unit tests (Vitest)
 pnpm --filter core-api test:e2e    # api e2e tests (Vitest + supertest)
@@ -59,6 +64,8 @@ pnpm --filter web test             # web unit tests (Vitest + Testing Library)
 pnpm --filter web typecheck        # tsc --noEmit
 pnpm --filter web e2e              # Playwright (needs Docker Postgres + seeded Acme source)
 pnpm --filter web api:types        # export OpenAPI then regenerate committed `schema.d.ts`
+pnpm test                          # all unit tests: core-api + web + ai-service
+pnpm lint                          # all linters: oxlint + ESLint + ruff
 ```
 
 Web env: `NEXT_PUBLIC_API_BASE_URL` is the API **origin** (`http://localhost:3001`) — Swagger paths already include `/api`. core-api allows it via `WEB_ORIGIN`.

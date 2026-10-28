@@ -24,6 +24,13 @@ blob-report/
 # Test coverage reports
 coverage/
 
+# Python — ai-service (uv). The lockfile and .python-version ARE committed.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
 # Secrets — NEVER committed; only the .env.example template is
 .env
 .env.*

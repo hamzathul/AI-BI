@@ -17,24 +17,27 @@ An AI-powered analytics app: configure a PostgreSQL source database at deploy ti
 
 ## Toolchain
 
-Verified on the dev machine 2026-10-18 (step 0.1). Run these — all must respond:
+Verified on the dev machine 2026-10-18 (step 0.1); uv/Python added 2026-10-27 (step 6.0). Run these — all must respond:
 
-| Tool                  | Expected      | Verify                                       |
-| --------------------- | ------------- | -------------------------------------------- |
-| Node.js               | 24.22.x (LTS) | `node -v`                                    |
-| pnpm                  | 11.18.x       | `pnpm -v`                                    |
-| Git                   | 2.51.x        | `git --version`                              |
-| Docker CLI + Compose  | 29.x / v5.x   | `docker --version`, `docker compose version` |
-| Docker daemon running | —             | `docker ps`                                  |
+| Tool                  | Expected              | Verify                                              |
+| --------------------- | --------------------- | --------------------------------------------------- |
+| Node.js               | 24.22.x (LTS)         | `node -v`                                           |
+| pnpm                  | 11.18.x               | `pnpm -v`                                           |
+| Git                   | 2.51.x                | `git --version`                                     |
+| Docker CLI + Compose  | 29.x / v5.x           | `docker --version`, `docker compose version`        |
+| Docker daemon running | —                     | `docker ps`                                         |
+| uv                    | 0.11.x                | `uv --version`                                      |
+| Python                | 3.14.x (uv-managed)   | `uv run --directory apps/ai-service python -V`      |
 
 Notes:
 
 - Node versions are managed with **nvm-windows** (D23): `nvm list` shows what's installed, `nvm use 24.22.0` activates one. On some Windows setups switching needs an admin terminal (symlink rule) — if `nvm use` refuses, reopen the terminal as Administrator.
 - pnpm is an npm-global install (D24); its exact version is pinned in `package.json` (`packageManager`) since the workspace skeleton landed.
+- **uv owns the Python side** (D58): it downloads/uses the version in `apps/ai-service/.python-version`, creates the app-local `.venv`, and locks dependencies in `uv.lock`. Your system `python` is irrelevant here — always go through `uv run` or the `pnpm ai:*` scripts.
 
 ## Quickstart
 
-Phases 0–5 are implemented: source → sync → metadata browser, the semantic model editor, QuerySpec compilation/execution, charts (table/KPI/bar/line), and persisted dashboards with filters. Next: the Phase 5 review gate, then the AI service (Phase 6).
+Phases 0–5 are implemented and committed. Phase 6 has started: the Python **ai-service** runs, tests, and lints (6.0), but chat/AI logic is next.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -48,6 +51,7 @@ cp apps/core-api/.env.example apps/core-api/.env
 
 # 4. Install the workspace and apply app-database migrations
 pnpm install
+pnpm ai:install
 pnpm --filter core-api prisma:migrate
 
 # 5. Load the Acme sample source database (destructive, dev-only — re-runnable)
@@ -59,9 +63,13 @@ pnpm db:seed:semantic
 # 7. Sanity-check the app database
 docker exec aibi-postgres psql -U postgres -d aibi -c "SELECT version();"
 
-# 8. Run both apps (web :3000, api :3001)
+# 8. Run the TypeScript apps (web :3000, api :3001)
 pnpm dev
 # API health + Swagger: http://localhost:3001/api/health, /api/docs
+
+#    In a second terminal, run the Python AI service (:8000)
+pnpm ai:dev
+# AI health + OpenAPI: http://127.0.0.1:8000/health, /docs
 
 # 9. Browser flow: http://localhost:3000
 #    Source → Test connection → Sync metadata → Metadata → hr.employees
@@ -71,7 +79,7 @@ pnpm dev
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
 
-Separate processes: `pnpm --filter core-api start:dev` and `pnpm --filter web dev`.
+Separate processes: `pnpm --filter core-api start:dev`, `pnpm --filter web dev`, and `pnpm ai:dev`.
 
 ## Web app notes
 
@@ -89,6 +97,12 @@ pnpm --filter web api:types
 # writes src/lib/api/schema.d.ts (committed — review its diff)
 ```
 
+## AI service notes
+
+- `apps/ai-service` is a **uv-managed Python 3.14** project. `uv.lock` and `.python-version` are committed; `.venv/` is not. It is deliberately **not** a pnpm workspace package — root `pnpm ai:*` scripts bridge to uv (D58).
+- It is internal-only: it binds to `127.0.0.1:8000`, has no CORS, and never receives source-database credentials. In Phase 6 it will call core-api's internal endpoints; the browser will not call it directly.
+- At 6.0 it only exposes `GET /health`. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
+
 ## Tests
 
 | Command                           | What it covers                                             |
@@ -98,7 +112,10 @@ pnpm --filter web api:types
 | `pnpm --filter web test`          | Web unit/components (Vitest + Testing Library + jsdom)     |
 | `pnpm --filter web typecheck`     | Web TypeScript (`tsc --noEmit`)                            |
 | `pnpm --filter web e2e`           | Playwright happy paths against real core-api + seeded Acme |
-| `pnpm lint`                       | Workspace lint (oxlint for API, ESLint for web)            |
+| `pnpm ai:test`                    | ai-service unit tests (pytest + Starlette TestClient)      |
+| `pnpm ai:lint`                    | ai-service lint + format check (ruff)                      |
+| `pnpm test`                       | All unit tests: core-api + web + ai-service                |
+| `pnpm lint`                       | Workspace lint: oxlint, ESLint, ruff                       |
 
 Playwright starts core-api and web automatically, but needs Docker Postgres running, `pnpm db:seed` already run, and `apps/core-api/.env` present. The e2e mutates the dev app database (sync creates a run/snapshot; the semantic and dashboard tests create and remove their own model/dashboards), so it runs with one worker. Install the browser once with `pnpm --filter web exec playwright install chromium`.
 
@@ -126,12 +143,20 @@ Playwright starts core-api and web automatically, but needs Docker Postgres runn
 
 Full request/response shapes: `http://localhost:3001/api/docs`.
 
+### ai-service (internal, `:8000`)
+
+| Method | Path      | Purpose                       |
+| ------ | --------- | ----------------------------- |
+| GET    | `/health` | Liveness for the Python service |
+
+OpenAPI for this service: `http://127.0.0.1:8000/docs`.
+
 ## Repo layout
 
 ```
 apps/web          Next.js frontend            (Phases 3–5)
 apps/core-api     NestJS backend              (Phases 1–5)
-apps/ai-service   Python/FastAPI + LangGraph  (Phase 6)
+apps/ai-service   Python/FastAPI; LangGraph   (Phase 6, 6.0 scaffolded)
 sample-data/      Acme HR + sales seed SQL    (Phase 2)
 docs/             Plan + decision log
 ```

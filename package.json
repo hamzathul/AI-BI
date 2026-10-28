@@ -9,7 +9,12 @@
     "dev": "pnpm -r --parallel --if-present dev",
     "db:seed": "docker compose cp sample-data/seed.sql postgres:/tmp/acme-seed.sql && docker compose exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 -f /tmp/acme-seed.sql",
     "db:seed:semantic": "pnpm --filter core-api seed:semantic",
-    "test": "pnpm -r --if-present test",
-    "lint": "pnpm -r --if-present lint"
+    "ai:install": "uv sync --directory apps/ai-service",
+    "ai:dev": "uv run --directory apps/ai-service uvicorn ai_service.main:app --reload --host 127.0.0.1 --port 8000",
+    "ai:test": "uv run --directory apps/ai-service pytest",
+    "ai:lint": "uv run --directory apps/ai-service ruff check . && uv run --directory apps/ai-service ruff format --check .",
+    "ai:format": "uv run --directory apps/ai-service ruff format .",
+    "test": "pnpm -r --if-present test && pnpm ai:test",
+    "lint": "pnpm -r --if-present lint && pnpm ai:lint"
   }
 }

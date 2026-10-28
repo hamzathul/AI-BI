@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phases 0–5 complete and committed (review gate 5.8 closed). Next: Phase 6.0 — AI service v0 (Python toolchain).**
+> **Current status: Phases 0–5 complete and committed; Phase 6.0 complete (Python 3.14 + uv + FastAPI health service). Next: 6.1 — the `llm.py` boundary.**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -66,7 +66,7 @@ Full log with dates and rationale in `docs/DECISIONS.md`. Headlines:
 | API contract | NestJS **Swagger/OpenAPI** → `openapi-typescript` types | `openapi.json` is generated; `schema.d.ts` is committed |
 | API tests | Vitest + supertest | |
 | Web tests | Vitest + Testing Library + **Playwright** | unit states + one real-browser happy path |
-| AI service (Phase 6) | Python + **uv**, **FastAPI**, **Pydantic v2**, **LangGraph 1.x**, ruff, pytest | provider SDK via own `llm.py` boundary |
+| AI service (Phase 6) | **Python 3.14** (uv-managed) + **uv 0.11**, **FastAPI 0.162**, **Pydantic v2**, **LangGraph 1.x**, ruff 0.17, pytest 9 | provider SDK via own `llm.py` boundary |
 
 ## 6. Target repo layout
 
@@ -207,7 +207,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 **Goal:** chat that answers real questions against the connected DB — safely, always through QuerySpec.
 **You'll learn:** Python tooling (uv/FastAPI/pytest), Pydantic contracts, LangGraph nodes, SSE streaming, prompt design + guardrails, evaluation.
 
-- [ ] **6.0 Python toolchain** · *Build:* `apps/ai-service` with uv, FastAPI skeleton, `/health`, ruff + pytest; run scripts. *Learn:* pyproject, virtualenvs — the Python mental model vs Node. *Done:* service runs next to the others.
+- [x] **6.0 Python toolchain** · *Build:* `apps/ai-service` with uv, FastAPI skeleton, `/health`, ruff + pytest; run scripts. *Learn:* pyproject, virtualenvs — the Python mental model vs Node. *Done:* service runs next to the others.
 - [ ] **6.1 `llm.py` boundary** · *Build:* provider SDK behind one module: structured output → Pydantic models, env key, usage logging. *Verify:* mocked tests. *Done:* the rest of the codebase never imports the LLM SDK directly.
 - [ ] **6.2 Internal API between services** · *Build:* service-token auth; core-api exposes: `GET /internal/context` (semantic model + dataset slices) and `POST /internal/specs/execute`. *Done:* ai-service can read context and execute specs, nothing more.
 - [ ] **6.3 LangGraph graph v0** · *Build:* nodes: `classify_intent → select_context → draft_spec → validate_spec (max 1 repair) → compose_answer`; in-memory state first. *Learn:* StateGraph, nodes/edges, where determinism vs LLM lives. *Verify:* pytest per node with a fake LLM. *Done:* "question in → validated QuerySpec + answer out".
@@ -217,6 +217,8 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 - [ ] **6.7 Stretch — clarification v0** · *Build:* ambiguous question → the agent asks instead of guessing (LangGraph interrupt or simple question message). *Done:* duplicates like "revenue" vs "net revenue" prompt a question.
 
 **Phase 6 done when:** "headcount by department" and "monthly revenue, last 12 months" answered correctly in chat; evals repeatable; no raw LLM SQL anywhere. **Review gate here.**
+
+**Phase 6 status:** 6.0 complete — uv-managed Python 3.14 service with `/health`, pytest + ruff green; next is 6.1.
 
 ---
 
@@ -300,3 +302,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-25 | 2–4 | gates | Review gates closed: 2.10 (Swagger endpoint walkthrough), 3.7 (browser source → sync → metadata + web data layer), Phase 4 gate (semantic editor + QuerySpec compile/execute flow). **Phases 0–4 complete and committed**; next is Phase 5.1 |
 | 2026-10-26 | 5 | 5.1–5.7 | ChartSpec v0 (Zod, embeds its QuerySpec, encodings validated against result columns, `table`/`kpi`/`bar`/`line`, semantic number/date formats) + `POST /api/charts/execute` batches (≤12 charts, 3 at a time, per-chart error isolation); versioned dashboards (`dashboards` + `widgets`, whole-document `PUT` + `expectedVersion` → 409, migration `20261026142336_add_dashboards`) + v0 dashboard filters rewritten server-side (`dateRange` + one categorical, warnings for unreachable dimensions); web: pure adapters/format/pivot + draft bridge, ECharts 6.1.0 client-only wrapper, form-based `/explore`, react-grid-layout canvas with add/edit/remove/save/reload and 409 reload UX, filter bar; **227 core-api unit / 75 e2e / 56 web unit / 3 Playwright green**, lint + typecheck clean (D54–D57). 5.8 review/commit next |
 | 2026-10-27 | 5 | 5.8 | Phase 5 review gate closed: ChartSpec v0, batch execute endpoint, and versioned dashboard document walked through; explore/canvas code reviewed; Phase 5 committed (`c25b369`). **Phases 0–5 complete and committed**; next is Phase 6.0 |
+| 2026-10-27 | 6 | 6.0 | Scaffolded `apps/ai-service` as a uv project (Python 3.14; committed `uv.lock` + `.python-version`), FastAPI app factory + typed `GET /health`, ruff + pytest (`httpx2` TestClient); added root `pnpm ai:install/dev/test/lint/format`, Python ignore rules, and root `test`/`lint` now include Python; **2 pytest green**, ruff clean, health + OpenAPI verified on `127.0.0.1:8000`; docs/decisions updated (D58). 6.1 next |

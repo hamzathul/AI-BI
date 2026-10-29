@@ -37,7 +37,7 @@ Notes:
 
 ## Quickstart
 
-Phases 0–5 are implemented and committed. Phase 6 has started: the Python **ai-service** runs, tests, and lints (6.0), but chat/AI logic is next.
+Phases 0–5 are implemented and committed. Phase 6 has started: the Python **ai-service** runs, tests, and lints (6.0), and the LLM provider now sits behind a single module (6.1); chat logic is next.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -48,6 +48,9 @@ docker compose up -d
 cp apps/core-api/.env.example apps/core-api/.env
 # The web app defaults to http://localhost:3001; copy apps/web/.env.example
 # to apps/web/.env.local only if you need to override it.
+# ai-service: copy apps/ai-service/.env.example → apps/ai-service/.env and set
+# LLM_API_KEY + LLM_MODEL to make real model calls. Optional — everything else
+# (including the test suite) runs without a key.
 
 # 4. Install the workspace and apply app-database migrations
 pnpm install
@@ -101,7 +104,10 @@ pnpm --filter web api:types
 
 - `apps/ai-service` is a **uv-managed Python 3.14** project. `uv.lock` and `.python-version` are committed; `.venv/` is not. It is deliberately **not** a pnpm workspace package — root `pnpm ai:*` scripts bridge to uv (D58).
 - It is internal-only: it binds to `127.0.0.1:8000`, has no CORS, and never receives source-database credentials. In Phase 6 it will call core-api's internal endpoints; the browser will not call it directly.
-- At 6.0 it only exposes `GET /health`. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
+- At 6.1 it exposes `GET /health` (which also reports whether the LLM is configured) and no chat route yet. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
+- **`llm.py` is the only module allowed to import the provider SDK** (D15/D59). Callers ask for a Pydantic model and get validated data plus token usage; SDK types and exceptions never cross the boundary. `tests/test_import_boundary.py` fails the build if a second file imports `openai`.
+- The provider is **OpenRouter** through the OpenAI SDK (`LLM_BASE_URL` override). Structured output is portable: the JSON Schema is inlined in the prompt, the model is asked for `json_object`, and Pydantic validates the reply. A provider that rejects `response_format` is retried once without it.
+- `pnpm ai:smoke` makes **one real call** to prove your key/model work; it prints "skipped" when `LLM_API_KEY`/`LLM_MODEL` are unset. Only `LLM_MODEL` is required in addition to the key — no default slug is baked in, because catalogue names change.
 
 ## Tests
 
@@ -113,6 +119,7 @@ pnpm --filter web api:types
 | `pnpm --filter web typecheck`     | Web TypeScript (`tsc --noEmit`)                            |
 | `pnpm --filter web e2e`           | Playwright happy paths against real core-api + seeded Acme |
 | `pnpm ai:test`                    | ai-service unit tests (pytest + Starlette TestClient)      |
+| `pnpm ai:smoke`                   | One real LLM call (needs a key; skips when unconfigured)   |
 | `pnpm ai:lint`                    | ai-service lint + format check (ruff)                      |
 | `pnpm test`                       | All unit tests: core-api + web + ai-service                |
 | `pnpm lint`                       | Workspace lint: oxlint, ESLint, ruff                       |
@@ -147,7 +154,7 @@ Full request/response shapes: `http://localhost:3001/api/docs`.
 
 | Method | Path      | Purpose                       |
 | ------ | --------- | ----------------------------- |
-| GET    | `/health` | Liveness for the Python service |
+| GET    | `/health` | Liveness + whether the LLM is configured |
 
 OpenAPI for this service: `http://127.0.0.1:8000/docs`.
 
@@ -156,7 +163,7 @@ OpenAPI for this service: `http://127.0.0.1:8000/docs`.
 ```
 apps/web          Next.js frontend            (Phases 3–5)
 apps/core-api     NestJS backend              (Phases 1–5)
-apps/ai-service   Python/FastAPI; LangGraph   (Phase 6, 6.0 scaffolded)
+apps/ai-service   Python/FastAPI; LangGraph   (Phase 6, 6.1 in progress)
 sample-data/      Acme HR + sales seed SQL    (Phase 2)
 docs/             Plan + decision log
 ```

@@ -54,6 +54,7 @@ pnpm dev                           # web :3000 + api :3001
 pnpm ai:install                    # uv sync: create .venv, install Python deps
 pnpm ai:dev                        # ai-service only (:8000; GET /health, docs at /docs)
 pnpm ai:test                       # ai-service unit tests (pytest)
+pnpm ai:smoke                      # one real LLM call (needs a key; skips otherwise)
 pnpm ai:lint                       # ruff check + format check
 pnpm ai:format                     # ruff format
 pnpm --filter core-api start:dev   # api only (:3001; GET /api/health, docs at /api/docs)

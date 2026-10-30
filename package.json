@@ -13,6 +13,7 @@
     "ai:dev": "uv run --directory apps/ai-service uvicorn ai_service.main:app --reload --host 127.0.0.1 --port 8000",
     "ai:test": "uv run --directory apps/ai-service pytest",
     "ai:smoke": "uv run --directory apps/ai-service python scripts/llm_smoke.py",
+    "ai:smoke:core": "uv run --directory apps/ai-service python scripts/core_api_smoke.py",
     "ai:lint": "uv run --directory apps/ai-service ruff check . && uv run --directory apps/ai-service ruff format --check .",
     "ai:format": "uv run --directory apps/ai-service ruff format .",
     "test": "pnpm -r --if-present test && pnpm ai:test",

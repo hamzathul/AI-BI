@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { semanticNameSchema } from '../semantic/semantic-model.schema.js';
 import { semanticFilterSchema } from '../semantic/semantic-filter.js';
-import { QUERY_MAX_ROWS } from './query.constants.js';
+import {
+  QUERY_MAX_DIMENSIONS,
+  QUERY_MAX_FILTERS,
+  QUERY_MAX_METRICS,
+  QUERY_MAX_ORDER_BY,
+  QUERY_MAX_ROWS,
+} from './query.constants.js';
 
 export const TIME_GRAINS = ['day', 'week', 'month', 'quarter', 'year'] as const;
 
@@ -18,8 +24,11 @@ const orderFieldSchema = semanticNameSchema;
 export const querySpecSchema = z
   .object({
     dataset: semanticNameSchema.optional(),
-    metrics: z.array(semanticNameSchema).min(1).max(20),
-    dimensions: z.array(semanticNameSchema).max(20).default([]),
+    metrics: z.array(semanticNameSchema).min(1).max(QUERY_MAX_METRICS),
+    dimensions: z
+      .array(semanticNameSchema)
+      .max(QUERY_MAX_DIMENSIONS)
+      .default([]),
     timeGrain: z
       .object({
         dimension: semanticNameSchema,
@@ -27,7 +36,7 @@ export const querySpecSchema = z
       })
       .strict()
       .optional(),
-    filters: z.array(semanticFilterSchema).max(20).default([]),
+    filters: z.array(semanticFilterSchema).max(QUERY_MAX_FILTERS).default([]),
     orderBy: z
       .array(
         z
@@ -37,7 +46,7 @@ export const querySpecSchema = z
           })
           .strict(),
       )
-      .max(10)
+      .max(QUERY_MAX_ORDER_BY)
       .default([]),
     limit: z.number().int().min(1).max(QUERY_MAX_ROWS).optional(),
   })

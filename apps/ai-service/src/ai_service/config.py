@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     llm_max_retries: int = 2
     llm_max_output_tokens: int = 2000
 
+    # core-api (D60). The token is the same value core-api validates as
+    # INTERNAL_API_TOKEN; without it the AI service still boots (and /health
+    # stays green) but cannot answer questions.
+    core_api_url: str = "http://127.0.0.1:3001"
+    internal_api_token: SecretStr | None = None
+    core_api_timeout_seconds: float = 30.0
+
     @property
     def missing_llm_settings(self) -> list[str]:
         """Env names that must be set before the LLM can be called."""
@@ -50,6 +57,21 @@ class Settings(BaseSettings):
     @property
     def llm_configured(self) -> bool:
         return not self.missing_llm_settings
+
+    @property
+    def missing_core_api_settings(self) -> list[str]:
+        """Env names that must be set before core-api can be called."""
+        missing: list[str] = []
+        if (
+            self.internal_api_token is None
+            or not self.internal_api_token.get_secret_value().strip()
+        ):
+            missing.append("INTERNAL_API_TOKEN")
+        return missing
+
+    @property
+    def core_api_configured(self) -> bool:
+        return not self.missing_core_api_settings
 
 
 @lru_cache

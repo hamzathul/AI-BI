@@ -186,6 +186,7 @@ export function buildSemanticCatalog(
       name: dataset.name,
       schemaName: dataset.source.schema,
       objectName: dataset.source.object,
+      ...(dataset.description ? { description: dataset.description } : {}),
       columns,
       dimensions: new Map(),
       metrics: new Map(),
@@ -297,6 +298,9 @@ export function buildSemanticCatalog(
         column: dimension.column,
         dataType: column.dataType,
         family: column.family,
+        ...(dimension.description
+          ? { description: dimension.description }
+          : {}),
       };
 
       catalogDataset.dimensions.set(dimension.name, catalogDimension);
@@ -416,7 +420,9 @@ export function buildSemanticCatalog(
         dataset: dataset.name,
         aggregation: metric.agg,
         expression,
+        expressionText: metric.expression ?? null,
         filters,
+        ...(metric.description ? { description: metric.description } : {}),
       };
 
       catalogDataset.metrics.set(metric.name, catalogMetric);

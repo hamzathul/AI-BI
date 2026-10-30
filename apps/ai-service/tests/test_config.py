@@ -66,3 +66,26 @@ def test_reads_a_dotenv_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert settings.llm_model == "google/gemini-2.5-flash"
     assert settings.llm_api_key is not None
     assert settings.llm_api_key.get_secret_value() == "sk-from-file"
+
+
+def test_core_api_is_optional_so_the_service_can_boot_alone() -> None:
+    settings = _settings()
+
+    assert settings.core_api_configured is False
+    assert settings.missing_core_api_settings == ["INTERNAL_API_TOKEN"]
+    assert settings.core_api_url == "http://127.0.0.1:3001"
+    assert settings.core_api_timeout_seconds == 30.0
+
+
+def test_core_api_token_configures_the_client() -> None:
+    settings = _settings(internal_api_token="shared-token-0123456789abcdef0123456789")
+
+    assert settings.core_api_configured is True
+    assert settings.missing_core_api_settings == []
+
+
+def test_core_api_token_is_masked_in_repr_and_str() -> None:
+    settings = _settings(internal_api_token="shared-token-do-not-print")
+
+    assert "shared-token-do-not-print" not in repr(settings)
+    assert "shared-token-do-not-print" not in str(settings)

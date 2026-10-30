@@ -16,6 +16,8 @@ export interface CatalogDimension {
   column: string;
   dataType: string;
   family: TypeFamily;
+  /** Business description from the editable document (D60). */
+  description?: string;
 }
 
 export type CatalogMetricFilter = ValidatedFilter<CatalogDimension>;
@@ -25,13 +27,19 @@ export interface CatalogMetric {
   dataset: string;
   aggregation: Aggregation;
   expression: MetricExpressionNode | null;
+  /** Original expression text, for display and the AI context (D60). */
+  expressionText: string | null;
   filters: CatalogMetricFilter[];
+  /** Business description from the editable document (D60). */
+  description?: string;
 }
 
 export interface CatalogDataset {
   name: string;
   schemaName: string;
   objectName: string;
+  /** Business description from the editable document (D60). */
+  description?: string;
   columns: Map<string, CatalogColumn>;
   dimensions: Map<string, CatalogDimension>;
   metrics: Map<string, CatalogMetric>;

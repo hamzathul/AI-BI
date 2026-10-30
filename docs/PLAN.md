@@ -2,7 +2,7 @@
 
 **Version 1.0 — October 18, 2026**
 
-> **Current status: Phases 0–5 complete and committed; Phase 6.0–6.1 complete (Python service + the `llm.py` provider boundary). Next: 6.2 — the internal API between services.**
+> **Current status: Phases 0–5 complete and committed; Phase 6.0–6.2 complete (Python service, the `llm.py` provider boundary, and the internal API between services). Next: 6.3 — the LangGraph graph.**
 
 This is our single source of truth for *what we build, in what order, and how we verify it*. We work in tiny steps. Checkboxes are ticked as we complete steps. Every decision we make along the way is logged in `docs/DECISIONS.md`. Background strategy: `architecture-review.md` (root).
 
@@ -209,7 +209,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 
 - [x] **6.0 Python toolchain** · *Build:* `apps/ai-service` with uv, FastAPI skeleton, `/health`, ruff + pytest; run scripts. *Learn:* pyproject, virtualenvs — the Python mental model vs Node. *Done:* service runs next to the others.
 - [x] **6.1 `llm.py` boundary** · *Build:* provider SDK behind one module: structured output → Pydantic models, env key, usage logging. *Verify:* mocked tests. *Done:* the rest of the codebase never imports the LLM SDK directly. *(D59)*
-- [ ] **6.2 Internal API between services** · *Build:* service-token auth; core-api exposes: `GET /internal/context` (semantic model + dataset slices) and `POST /internal/specs/execute`. *Done:* ai-service can read context and execute specs, nothing more.
+- [x] **6.2 Internal API between services** · *Build:* service-token auth; core-api exposes: `GET /internal/context` (semantic model + dataset slices) and `POST /internal/specs/execute`. *Done:* ai-service can read context and execute specs, nothing more.
 - [ ] **6.3 LangGraph graph v0** · *Build:* nodes: `classify_intent → select_context → draft_spec → validate_spec (max 1 repair) → compose_answer`; in-memory state first. *Learn:* StateGraph, nodes/edges, where determinism vs LLM lives. *Verify:* pytest per node with a fake LLM. *Done:* "question in → validated QuerySpec + answer out".
 - [ ] **6.4 Chat endpoint + streaming** · *Build:* core-api `POST /chat` proxying to ai-service; SSE step events; web chat page with message list + step timeline. *Done:* you watch `intent → context → spec → executed` live.
 - [ ] **6.5 Result rendering** · *Build:* reply shows data table + an automatically suggested chart (QuerySpec → default ChartSpec heuristic); reuses `<ChartRenderer/>`. *Done:* answers feel like mini-reports.
@@ -218,7 +218,7 @@ Legend per step: **Build** (what we create) · **Learn** (what you take away) ·
 
 **Phase 6 done when:** "headcount by department" and "monthly revenue, last 12 months" answered correctly in chat; evals repeatable; no raw LLM SQL anywhere. **Review gate here.**
 
-**Phase 6 status:** 6.0–6.1 complete — uv-managed Python 3.14 service with `/health`, pytest + ruff green, and the LLM provider behind `llm.py` (OpenRouter via the OpenAI SDK); next is 6.2.
+**Phase 6 status:** 6.0–6.2 complete — uv-managed Python 3.14 service with `/health`, pytest + ruff green, the LLM provider behind `llm.py` (OpenRouter via the OpenAI SDK), and a token-guarded internal API that lets ai-service read the validated model and execute QuerySpecs; next is 6.3.
 
 ---
 
@@ -304,3 +304,4 @@ Not scheduled. Each gets a DECISIONS.md entry when its turn comes:
 | 2026-10-27 | 5 | 5.8 | Phase 5 review gate closed: ChartSpec v0, batch execute endpoint, and versioned dashboard document walked through; explore/canvas code reviewed; Phase 5 committed (`c25b369`). **Phases 0–5 complete and committed**; next is Phase 6.0 |
 | 2026-10-27 | 6 | 6.0 | Scaffolded `apps/ai-service` as a uv project (Python 3.14; committed `uv.lock` + `.python-version`), FastAPI app factory + typed `GET /health`, ruff + pytest (`httpx2` TestClient); added root `pnpm ai:install/dev/test/lint/format`, Python ignore rules, and root `test`/`lint` now include Python; **2 pytest green**, ruff clean, health + OpenAPI verified on `127.0.0.1:8000`; docs/decisions updated (D58). 6.1 next |
 | 2026-10-28 | 6 | 6.1 | `llm.py` boundary: OpenRouter through the OpenAI SDK in one module; `config.py` (pydantic-settings) with `SecretStr` key, no default model, `.env` by absolute path; `structured()` inlines the JSON Schema + `json_object` + Pydantic validation, one retry without `response_format` on a provider 400, errors mapped to `LlmNotConfigured`/`LlmRefusal`/`LlmBadOutput`/`LlmUnavailable`, usage (tokens + cost) returned and logged without prompts or keys; `/health` reports `configured`/`missing`; AST test enforces the import boundary; `pnpm ai:smoke` for one real call; **22 pytest green**, ruff clean, live `/health` verified (D59). 6.2 next |
+| 2026-10-29 | 6 | 6.2 | Internal API between services: `GET /api/internal/context` (validated catalog → per-dataset metrics/dimensions with descriptions, types, filters, joins, compiler limits; 404 without a model) and `POST /api/internal/specs/execute` (same Zod spec + compiler/guard/connector, D52 error mapping), both behind a required `INTERNAL_API_TOKEN` checked in constant time and hidden from Swagger/`openapi.json` via `@ApiExcludeController`; ai-service `CoreApiClient` (`context()`/`execute()`, typed errors, camelCase `QuerySpec`/result Pydantic models, 30 s timeout) wired into the app lifespan, plus `pnpm ai:smoke:core`; **240 core-api unit / 85 e2e / 56 web unit / 37 pytest green**, lint clean; live smoke read Acme and returned headcount by department (38 across 6 rows); `pnpm --filter web api:types` left `schema.d.ts` unchanged (D60). 6.3 next |

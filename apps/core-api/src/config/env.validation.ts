@@ -16,6 +16,13 @@ export const envSchema = z.object({
   DATABASE_URL: z.url(),
   /** Read-only source database the connector reads (D30/D33). */
   SOURCE_DATABASE_URL: z.url(),
+  /**
+   * Shared secret for server-to-server calls from ai-service to
+   * `/api/internal/*` (D60). Generated once, never committed.
+   */
+  INTERNAL_API_TOKEN: z
+    .string()
+    .min(32, 'Use at least 32 characters (e.g. openssl rand -hex 32).'),
 });
 
 export type Env = z.infer<typeof envSchema>;

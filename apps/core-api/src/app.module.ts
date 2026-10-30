@@ -5,6 +5,7 @@ import { validateEnv } from './config/env.validation.js';
 import { ChartsModule } from './charts/charts.module.js';
 import { DashboardsModule } from './dashboards/dashboards.module.js';
 import { HealthModule } from './health/health.module.js';
+import { InternalModule } from './internal/internal.module.js';
 import { MetadataModule } from './metadata/metadata.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QueryModule } from './query/query.module.js';
@@ -26,6 +27,7 @@ import { SourceModule } from './source/source.module.js';
     DashboardsModule,
     HealthModule,
     SourceModule,
+    InternalModule,
   ],
 })
 export class AppModule {}

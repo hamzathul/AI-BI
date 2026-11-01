@@ -23,6 +23,21 @@ export const envSchema = z.object({
   INTERNAL_API_TOKEN: z
     .string()
     .min(32, 'Use at least 32 characters (e.g. openssl rand -hex 32).'),
+  /**
+   * Where ai-service listens (6.4). Core-api proxies `POST /api/chat` there;
+   * the port is never exposed to the browser.
+   */
+  AI_SERVICE_URL: z.url().default('http://127.0.0.1:8000'),
+  /**
+   * Whole-run budget for one chat answer. 4–5 LLM calls plus one query can
+   * legitimately take ~60 s, so the default is deliberately generous.
+   */
+  AI_SERVICE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(600_000)
+    .default(120_000),
 });
 
 export type Env = z.infer<typeof envSchema>;

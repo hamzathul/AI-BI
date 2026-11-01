@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ChatModule } from './chat/chat.module.js';
 import { ConnectorsModule } from './connectors/connectors.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { ChartsModule } from './charts/charts.module.js';
@@ -28,6 +29,7 @@ import { SourceModule } from './source/source.module.js';
     HealthModule,
     SourceModule,
     InternalModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

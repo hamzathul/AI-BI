@@ -16,6 +16,8 @@ describe('validateEnv', () => {
     expect(env.WEB_ORIGIN).toBe('http://localhost:3000');
     expect(env.DATABASE_URL).toBe(validEnv.DATABASE_URL);
     expect(env.SOURCE_DATABASE_URL).toBe(validEnv.SOURCE_DATABASE_URL);
+    expect(env.AI_SERVICE_URL).toBe('http://127.0.0.1:8000');
+    expect(env.AI_SERVICE_TIMEOUT_MS).toBe(120_000);
   });
 
   it('coerces PORT from a string to a number', () => {
@@ -55,6 +57,18 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...validEnv, WEB_ORIGIN: 'not-a-url' })).toThrow(
       /WEB_ORIGIN/,
     );
+  });
+
+  it('rejects an invalid AI_SERVICE_URL', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, AI_SERVICE_URL: 'not-a-url' }),
+    ).toThrow(/AI_SERVICE_URL/);
+  });
+
+  it('rejects a non-numeric AI_SERVICE_TIMEOUT_MS', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, AI_SERVICE_TIMEOUT_MS: 'soon' }),
+    ).toThrow(/AI_SERVICE_TIMEOUT_MS/);
   });
 
   it('rejects a non-numeric PORT', () => {

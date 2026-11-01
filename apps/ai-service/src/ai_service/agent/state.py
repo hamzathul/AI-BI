@@ -21,11 +21,19 @@ from ai_service.spec import QueryResult, QuerySpec
 Intent = Literal["data_question", "out_of_scope"]
 """What the router decided the question needs. Clarification arrives in 6.7."""
 
-Outcome = Literal["answered", "out_of_scope", "failed", "planned"]
+Outcome = Literal["answered", "out_of_scope", "failed"]
 """How a run ended.
 
-`planned` is temporary: 6.3a stops after drafting a QuerySpec, and 6.3b turns a
-successful run into `answered` once the spec has been executed.
+`answered` means a spec was executed and its rows are in `AgentAnswer.result`,
+even when the prose call failed (the deterministic fallback is still an answer).
+"""
+
+ANSWER_ROW_LIMIT = 100
+"""Rows carried in `AgentAnswer.result` (D62).
+
+The graph keeps the full result; the API payload is capped so one SSE frame
+stays small. `rowCount` is untouched, so `len(rows) < rowCount` tells the UI
+that only a preview was sent.
 """
 
 
@@ -41,6 +49,12 @@ class ContextSelection(BaseModel):
 
     dataset: str = Field(min_length=1, max_length=64)
     reason: str = Field(min_length=1, max_length=280)
+
+
+class AnswerProse(BaseModel):
+    """LLM answer for `compose_answer`: prose only, no numbers to trust blindly."""
+
+    answer: str = Field(min_length=1, max_length=1200)
 
 
 class AgentState(TypedDict, total=False):

@@ -37,7 +37,7 @@ Notes:
 
 ## Quickstart
 
-Phases 0–5 are implemented and committed. Phase 6 has started: the Python **ai-service** runs, tests, and lints (6.0), and the LLM provider now sits behind a single module (6.1); chat logic is next.
+Phases 0–5 are implemented and committed. Phase 6 is in progress: the Python **ai-service** runs, tests, and lints (6.0), the LLM provider sits behind a single module (6.1), the internal API connects the two services (6.2), the LangGraph agent executes and repairs QuerySpecs (6.3), and chat streams to the browser over SSE (6.4). Result rendering and evals are next.
 
 ```bash
 # 1. Verify tools — see "Toolchain" above
@@ -80,8 +80,11 @@ pnpm ai:dev
 # 9. Browser flow: http://localhost:3000
 #    Source → Test connection → Sync metadata → Metadata → hr.employees
 #    Semantic → Load example → Validate → Save model
+#    Chat → "Headcount by department" (watch the steps, then the answer)
 #    Explore → build a chart · Dashboards → New dashboard → Add widget → Save
 ```
+
+Chat needs **three processes**: the two TypeScript apps (`pnpm dev`) plus `pnpm ai:dev`; core-api proxies `/api/chat` to ai-service on `127.0.0.1:8000`, and neither browser nor web app ever calls ai-service directly (D63).
 
 Local dev connection: `postgresql://postgres:postgres@localhost:5433/aibi` — host port 5433 because 5432 is used by another project's container. This `DATABASE_URL` is the **app's own** database. The read-only **source** database is the Acme sample data, loaded by `pnpm db:seed` and exposed to the API as `SOURCE_DATABASE_URL` (never writable).
 
@@ -93,6 +96,7 @@ Separate processes: `pnpm --filter core-api start:dev`, `pnpm --filter web dev`,
 - `NEXT_PUBLIC_API_BASE_URL` is the API **origin only** (`http://localhost:3001`). Generated Swagger paths already include `/api`, so adding the prefix would duplicate it (D44).
 - Source credentials never reach the browser. `GET /api/source` returns only the database name; connection tests run server-side.
 - The **Semantic** page edits the whole model as JSON. Validate/Save checks every dataset, column, metric expression, metric filter, and join against the latest metadata snapshot; a stale model fails with a readable list of issues.
+- The **Chat** page (`/chat`) asks one question at a time and renders the live agent timeline (`understanding → choosing dataset → drafting → running → writing`), the prose answer, and a preview of up to 100 rows. The transcript is memory-only: a reload starts fresh. **Stop** aborts the request. It needs the semantic model and the ai-service running.
 - The **Explore** page is a form-based chart builder (metric, dimension, optional series, time grain, formats) with a live preview; it never saves. A chart is a ChartSpec — a QuerySpec plus encodings and formats — so the same spec renders on a dashboard.
 - **Dashboards** are one versioned document (name, filters, widgets + layout). The canvas saves with the version you loaded and reports a conflict instead of overwriting a newer save. Date-range and categorical filters are part of the document and are applied server-side to every widget that can reach the dimension.
 - API types are generated from the live OpenAPI document:
@@ -108,8 +112,10 @@ pnpm --filter web api:types
 - `apps/ai-service` is a **uv-managed Python 3.14** project. `uv.lock` and `.python-version` are committed; `.venv/` is not. It is deliberately **not** a pnpm workspace package — root `pnpm ai:*` scripts bridge to uv (D58).
 - It is internal-only: it binds to `127.0.0.1:8000`, has no CORS, and never receives source-database credentials. It calls core-api's internal endpoints; the browser never calls it directly (D60).
 - Since 6.2 it reads the model through `GET /api/internal/context` and runs every question through `POST /api/internal/specs/execute` — the same compiler, guard, and read-only connector as the public query route. Both calls require the shared `INTERNAL_API_TOKEN`; `CoreApiClient` (in `core_api.py`) is the only transport, and its errors are typed (`CoreApiRejected`, `CoreApiUnavailable`, ...).
+- Since 6.3 `Agent.run(question)` walks a LangGraph graph: `classify_intent` (data vs out-of-scope), `select_context`, `draft_spec` (a QuerySpec, never SQL), `validate_spec` (executes through core-api), **one** `repair_spec` round on a 4xx, and `compose_answer` (prose over at most 20 rows; deterministic text when there is nothing to summarize). Expected failures come back as `outcome="failed"` with a safe `error`, not an exception.
+- Since 6.4 `POST /chat` streams the run as SSE (`step`, then `answer` or `error`). core-api exposes it to the browser as `POST /api/chat` and proxies the frames untouched. The inbound route also requires `INTERNAL_API_TOKEN`, so nothing else on the host can spend LLM credits. `pnpm ai:smoke:agent` runs one real question through the whole graph and prints the spec, rows, answer, and usage.
 - `pnpm ai:smoke:core` makes **one real round-trip** against a running core-api (context + "headcount by department"); it skips when the token is unset and fails with the API's own message when core-api is down or has no saved model.
-- It exposes `GET /health` (which also reports whether the LLM is configured) and no chat route yet — the graph arrives in 6.3. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
+- It exposes `GET /health` (which also reports whether the LLM is configured) and `POST /chat`. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
 - **`llm.py` is the only module allowed to import the provider SDK** (D15/D59). Callers ask for a Pydantic model and get validated data plus token usage; SDK types and exceptions never cross the boundary. `tests/test_import_boundary.py` fails the build if a second file imports `openai`.
 - The provider is **OpenRouter** through the OpenAI SDK (`LLM_BASE_URL` override). Structured output is portable: the JSON Schema is inlined in the prompt, the model is asked for `json_object`, and Pydantic validates the reply. A provider that rejects `response_format` is retried once without it.
 - `pnpm ai:smoke` makes **one real call** to prove your key/model work; it prints "skipped" when `LLM_API_KEY`/`LLM_MODEL` are unset. Only `LLM_MODEL` is required in addition to the key — no default slug is baked in, because catalogue names change.
@@ -126,6 +132,7 @@ pnpm --filter web api:types
 | `pnpm ai:test`                    | ai-service unit tests (pytest + Starlette TestClient)      |
 | `pnpm ai:smoke`                   | One real LLM call (needs a key; skips when unconfigured)   |
 | `pnpm ai:smoke:core`              | One real core-api round-trip (needs both services up)      |
+| `pnpm ai:smoke:agent`             | One real question through the whole agent (needs both)     |
 | `pnpm ai:lint`                    | ai-service lint + format check (ruff)                      |
 | `pnpm test`                       | All unit tests: core-api + web + ai-service                |
 | `pnpm lint`                       | Workspace lint: oxlint, ESLint, ruff                       |
@@ -147,6 +154,7 @@ Playwright starts core-api and web automatically, but needs Docker Postgres runn
 | POST   | `/api/semantic/model/validate` | Validate without saving                           |
 | GET    | `/api/semantic/example`        | The Acme HR + sales example model                 |
 | POST   | `/api/query/execute`           | Compile and execute a QuerySpec                   |
+| POST   | `/api/chat`                    | Ask the agent; streams SSE frames                 |
 | POST   | `/api/charts/execute`          | Execute up to 12 charts (one batch per dashboard) |
 | GET    | `/api/dashboards`              | List dashboards                                   |
 | POST   | `/api/dashboards`              | Create an empty dashboard                         |
@@ -158,9 +166,10 @@ Full request/response shapes: `http://localhost:3001/api/docs`.
 
 ### ai-service (internal, `:8000`)
 
-| Method | Path      | Purpose                       |
-| ------ | --------- | ----------------------------- |
-| GET    | `/health` | Liveness + whether the LLM is configured |
+| Method | Path      | Purpose                                                    |
+| ------ | --------- | ---------------------------------------------------------- |
+| GET    | `/health` | Liveness + whether the LLM is configured                   |
+| POST   | `/chat`   | One question, streamed as SSE (requires the service token) |
 
 OpenAPI for this service: `http://127.0.0.1:8000/docs`.
 
@@ -169,7 +178,7 @@ OpenAPI for this service: `http://127.0.0.1:8000/docs`.
 ```
 apps/web          Next.js frontend            (Phases 3–5)
 apps/core-api     NestJS backend              (Phases 1–5)
-apps/ai-service   Python/FastAPI; LangGraph   (Phase 6, 6.1 in progress)
+apps/ai-service   Python/FastAPI; LangGraph   (Phase 6)
 sample-data/      Acme HR + sales seed SQL    (Phase 2)
 docs/             Plan + decision log
 ```

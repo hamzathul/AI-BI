@@ -4,10 +4,9 @@ Each node receives the state and returns only the keys it changes. Expected
 failures — LLM not configured, core-api has no model, the model invented a
 dataset — do not raise: they set `outcome="failed"` plus a safe `error`, and the
 graph routes to `compose_answer`. Unexpected bugs still raise, so they surface
-as a 500 in 6.4 instead of hiding.
+as a 500 (or an SSE error frame) in 6.4 instead of hiding.
 
-6.3a implements routing, context selection, and spec drafting. Execution,
-repair, and prose answers arrive in 6.3b.
+6.3b adds execution (`validate_spec`), one repair round, and the prose answer.
 """
 
 import logging
@@ -18,10 +17,11 @@ from typing import Any
 from ai_service.agent import prompts
 from ai_service.agent.state import (
     AgentState,
+    AnswerProse,
     ContextSelection,
     IntentDecision,
 )
-from ai_service.core_api import CoreApiClient, CoreApiError
+from ai_service.core_api import CoreApiClient, CoreApiError, CoreApiRejected
 from ai_service.llm import LlmClient, LlmError
 from ai_service.spec import QuerySpec
 
@@ -32,6 +32,9 @@ SMALL_MAX_TOKENS = 300
 
 DRAFT_MAX_TOKENS = 1500
 """Budget for a QuerySpec: small JSON, but long names and a few filters."""
+
+ANSWER_MAX_TOKENS = 400
+"""Budget for the prose answer: three sentences, never a table."""
 
 
 @dataclass(frozen=True)
@@ -141,15 +144,90 @@ class AgentNodes:
 
         return {
             "spec": spec,
-            "outcome": "planned",
             "usages": [result.usage],
             "trace": ["draft_spec"],
         }
 
-    async def compose_answer(self, state: AgentState) -> dict[str, Any]:
-        """Deterministic answers for out-of-scope and failed runs.
+    async def validate_spec(self, state: AgentState) -> dict[str, Any]:
+        """Execute the spec through core-api: a spec that runs is valid.
 
-        6.3b adds the success branch: prose written over the executed rows.
+        There is no dry-run route by design (D9/D52): the compiler is the only
+        judge, so "validate" means "compile and run". A 400 is the one failure a
+        second LLM call can fix, so it is recorded as `validation_error` instead
+        of ending the run; infrastructure failures end it.
+        """
+        spec = state["spec"]
+
+        try:
+            result = await self._deps.core_api.execute(spec)
+        except CoreApiRejected as exc:
+            logger.warning("agent_spec_rejected status=%d", exc.status_code)
+            return {
+                "validation_error": exc.message,
+                "trace": ["validate_spec"],
+            }
+        except CoreApiError as exc:
+            return self._failed("validate_spec", exc)
+
+        return {
+            "result": result,
+            "validation_error": None,
+            "trace": ["validate_spec"],
+        }
+
+    async def repair_spec(self, state: AgentState) -> dict[str, Any]:
+        """One repair round, fed the compiler's message and the failed spec."""
+        base = state["fact_dataset"]
+        failed = state["spec"]
+        error = state.get("validation_error") or "The backend rejected the spec."
+
+        try:
+            result = await self._deps.llm.structured(
+                schema=QuerySpec,
+                system=prompts.REPAIR_SYSTEM,
+                user=prompts.repair_user(
+                    state["context"],
+                    base,
+                    state["question"],
+                    failed,
+                    error,
+                    self._deps.current_date(),
+                ),
+                max_tokens=DRAFT_MAX_TOKENS,
+            )
+        except LlmError as exc:
+            return self._failed("repair_spec", exc)
+
+        repaired = result.data
+        if repaired.dataset is None:
+            repaired = repaired.model_copy(update={"dataset": base})
+
+        if repaired == failed:
+            # Running the same spec again can only fail again. Failing here is
+            # honest and saves one query.
+            logger.warning("agent_repair_unchanged")
+            return {
+                "outcome": "failed",
+                "error": "The model returned the same spec after it was rejected.",
+                "usages": [result.usage],
+                "trace": ["repair_spec"],
+            }
+
+        return {
+            "spec": repaired,
+            "validation_error": None,
+            "repairs": 1,
+            "usages": [result.usage],
+            "trace": ["repair_spec"],
+        }
+
+    async def compose_answer(self, state: AgentState) -> dict[str, Any]:
+        """Prose over the executed rows, with a deterministic floor.
+
+        Failures and out-of-scope runs get fixed text. An empty result gets its
+        own sentence and no LLM call: there is nothing to summarize and every
+        invented word would be a liability. If the prose call fails, the rows
+        are still the answer.
         """
         if state.get("outcome") == "failed":
             return {
@@ -164,7 +242,46 @@ class AgentNodes:
                 "trace": ["compose_answer"],
             }
 
-        return {"trace": ["compose_answer"]}
+        result = state.get("result")
+        if result is None:
+            # A second rejection lands here: keep the compiler's safe message so
+            # the UI can explain what still failed.
+            error = state.get("validation_error") or "The run finished without a result."
+            return {
+                "outcome": "failed",
+                "answer": prompts.FAILED_ANSWER,
+                "error": error,
+                "trace": ["compose_answer"],
+            }
+
+        if result.row_count == 0:
+            return {
+                "answer": prompts.EMPTY_RESULT_ANSWER,
+                "outcome": "answered",
+                "trace": ["compose_answer"],
+            }
+
+        try:
+            composed = await self._deps.llm.structured(
+                schema=AnswerProse,
+                system=prompts.ANSWER_SYSTEM,
+                user=prompts.answer_user(state["question"], result),
+                max_tokens=ANSWER_MAX_TOKENS,
+            )
+        except LlmError as exc:
+            logger.warning("agent_answer_llm_failed error=%s", type(exc).__name__)
+            return {
+                "answer": prompts.FALLBACK_ANSWER,
+                "outcome": "answered",
+                "trace": ["compose_answer"],
+            }
+
+        return {
+            "answer": composed.data.answer,
+            "outcome": "answered",
+            "usages": [composed.usage],
+            "trace": ["compose_answer"],
+        }
 
     @staticmethod
     def _failed(node: str, exc: Exception) -> dict[str, Any]:

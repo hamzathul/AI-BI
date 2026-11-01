@@ -234,6 +234,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the AI agent one question
+         * @description Streams server-sent events: `step` frames report progress (classify, select, draft, execute, compose), `answer` is the final payload with the QuerySpec and rows, and `error` means the run broke after streaming started. Frames are `data: <json>` lines with a `type` field.
+         */
+        post: operations["ChatController_chat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -892,6 +912,13 @@ export interface components {
             error: string | null;
             counts: components["schemas"]["SyncCountsDto"];
         };
+        ChatRequestDto: {
+            /**
+             * @description One question about the connected data model.
+             * @example Headcount by department?
+             */
+            message: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1500,6 +1527,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    ChatController_chat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequestDto"];
+            };
+        };
+        responses: {
+            /** @description Server-sent event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description The message is empty or longer than 2000 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            /** @description ai-service is unreachable, rejected the request, or timed out */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["ApiErrorDto"];
                 };
             };
         };

@@ -7,12 +7,13 @@ Assertions cover both the state update and the prompt that produced it, because
 
 from datetime import date
 
+from ai_service.agent import prompts
 from ai_service.agent.nodes import AgentDeps, AgentNodes
-from ai_service.agent.state import ContextSelection, IntentDecision
-from ai_service.core_api import CoreApiRejected
-from ai_service.llm import LlmBadOutput, LlmNotConfigured
-from ai_service.spec import OrderBy, QuerySpec
-from tests.fakes import FakeCoreApi, FakeLlm, acme_context
+from ai_service.agent.state import AnswerProse, ContextSelection, IntentDecision
+from ai_service.core_api import CoreApiRejected, CoreApiUnavailable
+from ai_service.llm import LlmBadOutput, LlmNotConfigured, LlmUnavailable
+from ai_service.spec import OrderBy, QueryResult, QuerySpec, ResultColumn
+from tests.fakes import FakeCoreApi, FakeLlm, acme_context, headcount_result
 
 TODAY = date(2026, 10, 31)
 
@@ -124,7 +125,7 @@ async def test_draft_spec_returns_a_query_spec_prompted_with_the_narrow_model() 
     update = await nodes.draft_spec(state)  # type: ignore[arg-type]
 
     assert update["spec"] == spec
-    assert update["outcome"] == "planned"
+    assert "outcome" not in update
     assert len(update["usages"]) == 1
     prompt = llm.calls[0]["user"]
     assert "Today is 2026-10-31 (UTC)." in prompt
@@ -161,3 +162,220 @@ async def test_draft_spec_llm_failure_is_a_safe_failure() -> None:
     assert update["outcome"] == "failed"
     assert "QuerySpec" in update["error"]
     assert update["trace"] == ["draft_spec"]
+
+
+# --- 6.3b: execution, repair, prose ---------------------------------------
+
+
+def _spec(
+    metrics: list[str] | None = None,
+    dimensions: list[str] | None = None,
+) -> QuerySpec:
+    return QuerySpec(
+        dataset="employees",
+        metrics=metrics or ["headcount"],
+        dimensions=dimensions or ["department"],
+    )
+
+
+async def test_validate_spec_executes_and_keeps_the_result() -> None:
+    spec = _spec()
+    core = FakeCoreApi(acme_context(), [headcount_result()])
+    nodes = AgentNodes(_deps(FakeLlm({}), core))
+
+    update = await nodes.validate_spec({"question": "Headcount?", "spec": spec})
+
+    assert update["result"].row_count == 2
+    assert update["validation_error"] is None
+    assert update["trace"] == ["validate_spec"]
+    assert core.executed == [spec]
+
+
+async def test_validate_spec_records_a_rejection_for_the_repair_round() -> None:
+    core = FakeCoreApi(
+        acme_context(),
+        [CoreApiRejected(400, 'Unknown metric "headcounts".')],
+    )
+    nodes = AgentNodes(_deps(FakeLlm({}), core))
+
+    update = await nodes.validate_spec({"question": "Headcount?", "spec": _spec()})
+
+    assert update["validation_error"] == 'Unknown metric "headcounts".'
+    assert "outcome" not in update
+    assert update["trace"] == ["validate_spec"]
+
+
+async def test_validate_spec_infrastructure_failure_is_not_repairable() -> None:
+    core = FakeCoreApi(acme_context(), [CoreApiUnavailable("core-api is unreachable")])
+    nodes = AgentNodes(_deps(FakeLlm({}), core))
+
+    update = await nodes.validate_spec({"question": "Headcount?", "spec": _spec()})
+
+    assert update["outcome"] == "failed"
+    assert "validation_error" not in update
+
+
+async def test_repair_spec_returns_a_new_spec_and_marks_the_round() -> None:
+    failed = QuerySpec(dataset="employees", metrics=["headcounts"])
+    repaired = _spec()
+    llm = FakeLlm({"QuerySpec": [repaired]})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.repair_spec(
+        {
+            "question": "Headcount by department?",
+            "context": acme_context(),
+            "fact_dataset": "employees",
+            "spec": failed,
+            "validation_error": 'Unknown metric "headcounts".',
+        }
+    )
+
+    assert update["spec"] == repaired
+    assert update["repairs"] == 1
+    assert update["validation_error"] is None
+    assert update["trace"] == ["repair_spec"]
+    prompt = llm.calls[0]["user"]
+    assert 'Unknown metric "headcounts".' in prompt
+    assert '"headcounts"' in prompt
+    assert "Headcount by department?" in prompt
+    assert "product_category" not in prompt
+
+
+async def test_repair_spec_fails_when_the_model_repeats_itself() -> None:
+    failed = QuerySpec(dataset="employees", metrics=["headcounts"])
+    llm = FakeLlm({"QuerySpec": [failed]})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.repair_spec(
+        {
+            "question": "Headcount?",
+            "context": acme_context(),
+            "fact_dataset": "employees",
+            "spec": failed,
+            "validation_error": 'Unknown metric "headcounts".',
+        }
+    )
+
+    assert update["outcome"] == "failed"
+    assert "same spec" in update["error"]
+    assert "spec" not in update
+    assert "repairs" not in update
+
+
+async def test_repair_spec_llm_failure_is_a_safe_failure() -> None:
+    llm = FakeLlm({"QuerySpec": [LlmBadOutput("model output did not match QuerySpec")]})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.repair_spec(
+        {
+            "question": "Headcount?",
+            "context": acme_context(),
+            "fact_dataset": "employees",
+            "spec": _spec(),
+            "validation_error": "rejected",
+        }
+    )
+
+    assert update["outcome"] == "failed"
+    assert update["trace"] == ["repair_spec"]
+
+
+async def test_compose_answer_is_deterministic_for_an_empty_result() -> None:
+    empty = QueryResult(
+        columns=[ResultColumn(name="headcount", data_type="bigint")],
+        rows=[],
+        row_count=0,
+        truncated=False,
+        duration_ms=1,
+    )
+    llm = FakeLlm({})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.compose_answer(
+        {"question": "Headcount?", "result": empty, "fact_dataset": "employees"}
+    )
+
+    assert update["answer"] == prompts.EMPTY_RESULT_ANSWER
+    assert update["outcome"] == "answered"
+    assert llm.calls == []
+
+
+async def test_compose_answer_writes_prose_over_the_rows() -> None:
+    llm = FakeLlm(
+        {"AnswerProse": [AnswerProse(answer="Engineering has the most people, with 11.")]}
+    )
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.compose_answer(
+        {
+            "question": "Headcount by department?",
+            "result": headcount_result(),
+            "fact_dataset": "employees",
+        }
+    )
+
+    assert update["answer"] == "Engineering has the most people, with 11."
+    assert update["outcome"] == "answered"
+    assert len(update["usages"]) == 1
+    prompt = llm.calls[0]["user"]
+    assert "Headcount by department?" in prompt
+    assert "Engineering" in prompt
+    assert "Result: 2 row(s)" in prompt
+
+
+async def test_compose_answer_prompt_caps_rows_at_twenty() -> None:
+    many = QueryResult(
+        columns=[ResultColumn(name="i", data_type="integer")],
+        rows=[{"i": index} for index in range(50)],
+        row_count=50,
+        truncated=False,
+        duration_ms=1,
+    )
+    llm = FakeLlm({"AnswerProse": [AnswerProse(answer="Fifty rows.")]})
+    nodes = AgentNodes(_deps(llm))
+
+    await nodes.compose_answer({"question": "Rows?", "result": many, "fact_dataset": "employees"})
+
+    prompt = llm.calls[0]["user"]
+    assert prompt.count('"i":') == 20
+    assert "Rows shown (20 of 50)" in prompt
+
+
+async def test_compose_answer_prompt_truncates_long_cells() -> None:
+    long_text = "x" * 300
+    result = QueryResult(
+        columns=[ResultColumn(name="note", data_type="text")],
+        rows=[{"note": long_text}],
+        row_count=1,
+        truncated=False,
+        duration_ms=1,
+    )
+    llm = FakeLlm({"AnswerProse": [AnswerProse(answer="One note.")]})
+    nodes = AgentNodes(_deps(llm))
+
+    await nodes.compose_answer({"question": "Notes?", "result": result})
+
+    prompt = llm.calls[0]["user"]
+    assert "x" * 120 in prompt
+    assert "x" * 121 not in prompt
+
+
+async def test_compose_answer_falls_back_when_the_prose_call_fails() -> None:
+    llm = FakeLlm({"AnswerProse": [LlmUnavailable("provider is down")]})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.compose_answer({"question": "Headcount?", "result": headcount_result()})
+
+    assert update["answer"] == prompts.FALLBACK_ANSWER
+    assert update["outcome"] == "answered"
+    assert "usages" not in update
+
+
+async def test_compose_answer_without_a_result_fails_instead_of_guessing() -> None:
+    nodes = AgentNodes(_deps(FakeLlm({})))
+
+    update = await nodes.compose_answer({"question": "Headcount?"})
+
+    assert update["outcome"] == "failed"
+    assert "result" in update["error"]

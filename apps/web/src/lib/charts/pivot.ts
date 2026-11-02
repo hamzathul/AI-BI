@@ -1,5 +1,6 @@
-import type { DateStyle, QueryResult } from "@/lib/api/types";
+import type { DateStyle } from "@/lib/api/types";
 import { formatDate, toNumber } from "./format";
+import type { ChartResultData } from "./types";
 
 export interface ChartSeries {
   name: string;
@@ -31,7 +32,7 @@ export interface PivotOptions {
  * must never silently drop a number.
  */
 export function pivotRows(
-  result: QueryResult,
+  result: ChartResultData,
   options: PivotOptions,
 ): PivotedRows {
   const { x, y, series, dateStyle, fallbackSeriesName } = options;

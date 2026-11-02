@@ -1,7 +1,8 @@
 "use client";
 
-import type { ChartSpec, QueryResult } from "@/lib/api/types";
+import type { ChartSpec } from "@/lib/api/types";
 import { buildChartView } from "@/lib/charts/adapters";
+import type { ChartResultData } from "@/lib/charts/types";
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import { EChartsChart } from "./echarts-chart";
 
 interface ChartViewProps {
   chart: ChartSpec;
-  result?: QueryResult;
+  result?: ChartResultData;
   error?: string;
   /** Height of the chart area. Tables scroll instead of growing. */
   height?: number;

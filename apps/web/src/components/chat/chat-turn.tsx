@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import type { ChatAnswer } from "@/lib/chat/events";
 import type { ChatTurn } from "@/lib/chat/state";
+import { AnswerChart } from "./answer-chart";
 import { AnswerTable } from "./answer-table";
 import { StepTimeline } from "./step-timeline";
 
@@ -54,6 +55,7 @@ function AnswerBody({ answer }: { answer: ChatAnswer }) {
   return (
     <div className="space-y-4">
       <p className="text-sm leading-relaxed">{answer.answer}</p>
+      <AnswerChart spec={answer.spec} result={answer.result} />
       {answer.result ? <AnswerTable result={answer.result} /> : null}
       <AnswerMeta answer={answer} />
     </div>

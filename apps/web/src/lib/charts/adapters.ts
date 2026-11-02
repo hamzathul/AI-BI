@@ -4,10 +4,10 @@ import type {
   ChartSpec,
   DateStyle,
   LineChart,
-  QueryResult,
 } from "@/lib/api/types";
 import { formatCell, formatNumber, isDateType } from "./format";
 import { pivotRows } from "./pivot";
+import type { ChartResultData } from "./types";
 
 /**
  * A view model, not a renderer option: the components decide what to mount.
@@ -20,7 +20,7 @@ export type ChartView =
   | { kind: "echarts"; option: EChartsCoreOption };
 
 export function chartColumnDataType(
-  result: QueryResult,
+  result: ChartResultData,
   column: string,
 ): string {
   return result.columns.find((entry) => entry.name === column)?.dataType ?? "";
@@ -28,7 +28,7 @@ export function chartColumnDataType(
 
 function dateStyleFor(
   chart: BarChart | LineChart,
-  result: QueryResult,
+  result: ChartResultData,
 ): DateStyle | undefined {
   // The compiler returns a time-grain dimension as text, so the query's grain
   // is a stronger signal than the result column type.
@@ -47,7 +47,7 @@ const compact = new Intl.NumberFormat("en-US", {
 
 function cartesianOption(
   chart: BarChart | LineChart,
-  result: QueryResult,
+  result: ChartResultData,
 ): EChartsCoreOption {
   const dateStyle = dateStyleFor(chart, result);
   const pivoted = pivotRows(result, {
@@ -109,7 +109,7 @@ function cartesianOption(
 
 export function buildChartView(
   chart: ChartSpec,
-  result: QueryResult,
+  result: ChartResultData,
 ): ChartView {
   if (chart.type === "table") {
     return {

@@ -115,6 +115,7 @@ pnpm --filter web api:types
 - Since 6.3 `Agent.run(question)` walks a LangGraph graph: `classify_intent` (data vs out-of-scope), `select_context`, `draft_spec` (a QuerySpec, never SQL), `validate_spec` (executes through core-api), **one** `repair_spec` round on a 4xx, and `compose_answer` (prose over at most 20 rows; deterministic text when there is nothing to summarize). Expected failures come back as `outcome="failed"` with a safe `error`, not an exception.
 - Since 6.4 `POST /chat` streams the run as SSE (`step`, then `answer` or `error`). core-api exposes it to the browser as `POST /api/chat` and proxies the frames untouched. The inbound route also requires `INTERNAL_API_TOKEN`, so nothing else on the host can spend LLM credits. `pnpm ai:smoke:agent` runs one real question through the whole graph and prints the spec, rows, answer, and usage.
 - `pnpm ai:smoke:core` makes **one real round-trip** against a running core-api (context + "headcount by department"); it skips when the token is unset and fails with the API's own message when core-api is down or has no saved model.
+- Since 6.6 a **30-question golden set** lives in `apps/ai-service/evals/golden.json` (HR + sales + tricky cases, frozen `today`). `pnpm ai:eval` answers it with the real LLM and core-api, scores the dataset/metrics/dimensions/time grain/filters/order/limit plus a few row spot-checks, and writes gitignored `evals/last-run.json`; `pnpm ai:eval:record` also overwrites the committed `evals/baseline.json`. It skips when the LLM key/model is unset, and fails loudly when the stack is broken. Method and limits: `docs/EVALS.md`.
 - It exposes `GET /health` (which also reports whether the LLM is configured) and `POST /chat`. Interactive FastAPI docs: `http://127.0.0.1:8000/docs`.
 - **`llm.py` is the only module allowed to import the provider SDK** (D15/D59). Callers ask for a Pydantic model and get validated data plus token usage; SDK types and exceptions never cross the boundary. `tests/test_import_boundary.py` fails the build if a second file imports `openai`.
 - The provider is **OpenRouter** through the OpenAI SDK (`LLM_BASE_URL` override). Structured output is portable: the JSON Schema is inlined in the prompt, the model is asked for `json_object`, and Pydantic validates the reply. A provider that rejects `response_format` is retried once without it.
@@ -133,6 +134,8 @@ pnpm --filter web api:types
 | `pnpm ai:smoke`                   | One real LLM call (needs a key; skips when unconfigured)   |
 | `pnpm ai:smoke:core`              | One real core-api round-trip (needs both services up)      |
 | `pnpm ai:smoke:agent`             | One real question through the whole agent (needs both)     |
+| `pnpm ai:eval`                    | Live 30-question golden set; writes `evals/last-run.json`  |
+| `pnpm ai:eval:record`             | Same, and overwrites the committed `evals/baseline.json`   |
 | `pnpm ai:lint`                    | ai-service lint + format check (ruff)                      |
 | `pnpm test`                       | All unit tests: core-api + web + ai-service                |
 | `pnpm lint`                       | Workspace lint: oxlint, ESLint, ruff                       |

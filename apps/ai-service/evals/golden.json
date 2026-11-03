@@ -1,0 +1,452 @@
+{
+  "version": 1,
+  "today": "2026-06-01",
+  "description": "Acme HR + sales questions. `today` is frozen so relative date questions are reproducible; the seed data spans Jan 2024 - Jun 2026.",
+  "cases": [
+    {
+      "id": "hr-headcount-total",
+      "tag": "hr",
+      "question": "How many active employees do we have?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["headcount"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "headcount": 38 }]
+        }
+      },
+      "notes": "The headcount metric already filters is_active = true."
+    },
+    {
+      "id": "hr-headcount-by-department",
+      "tag": "hr",
+      "question": "Headcount by department",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["headcount"],
+        "dimensions": ["department"],
+        "time_grain": null,
+        "filters": [],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "department": "Engineering", "headcount": 11 }]
+        }
+      },
+      "notes": "department is a parent dimension reached through a join."
+    },
+    {
+      "id": "hr-avg-salary-by-department",
+      "tag": "hr",
+      "question": "What is the average salary by department?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["avg_salary"],
+        "dimensions": ["department"],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Same fact dataset as headcount, different metric."
+    },
+    {
+      "id": "hr-highest-avg-salary-department",
+      "tag": "hr",
+      "question": "Which department has the highest average salary?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["avg_salary"],
+        "dimensions": ["department"],
+        "time_grain": null,
+        "filters": [],
+        "order_by": [{ "field": "avg_salary", "direction": "desc" }],
+        "limit": 1,
+        "result": { "row_count": 1 }
+      },
+      "notes": "A ranking question needs orderBy + limit."
+    },
+    {
+      "id": "hr-headcount-by-location",
+      "tag": "hr",
+      "question": "Headcount by office location",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["headcount"],
+        "dimensions": ["location"],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "location lives on the departments parent."
+    },
+    {
+      "id": "hr-monthly-hires-last-2-years",
+      "tag": "hr",
+      "question": "Show monthly hires over the last two years",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["headcount"],
+        "dimensions": [],
+        "time_grain": { "dimension": "hire_date", "grain": "month" },
+        "filters": [{ "dimension": "hire_date" }],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Relative range; the date boundary itself is not graded in v0."
+    },
+    {
+      "id": "hr-headcount-by-hire-year",
+      "tag": "hr",
+      "question": "Employee count by hire year",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["headcount"],
+        "dimensions": [],
+        "time_grain": { "dimension": "hire_date", "grain": "year" },
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Year grain instead of month."
+    },
+    {
+      "id": "hr-average-salary",
+      "tag": "hr",
+      "question": "What is the average salary?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "employees",
+        "metrics": ["avg_salary"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Single-value KPI."
+    },
+    {
+      "id": "hr-department-count",
+      "tag": "hr",
+      "question": "How many departments do we have?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "departments",
+        "metrics": ["department_count"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "department_count": 6 }]
+        }
+      },
+      "notes": "A different fact dataset, not employees."
+    },
+    {
+      "id": "sales-total-revenue",
+      "tag": "sales",
+      "question": "What is our total revenue?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "revenue excludes cancelled orders through its metric filter."
+    },
+    {
+      "id": "sales-monthly-revenue-last-12-months",
+      "tag": "sales",
+      "question": "Monthly revenue for the last 12 months",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": { "dimension": "order_date", "grain": "month" },
+        "filters": [{ "dimension": "order_date" }],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "order_date": "2026-01-01" }]
+        }
+      },
+      "notes": "order_date is reached from order_items through orders."
+    },
+    {
+      "id": "sales-revenue-by-product-category",
+      "tag": "sales",
+      "question": "Revenue by product category",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": ["product_category"],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Direct order_items -> products join."
+    },
+    {
+      "id": "sales-revenue-by-customer-country",
+      "tag": "sales",
+      "question": "Revenue by customer country",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": ["customer_country"],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Two hops: order_items -> orders -> customers."
+    },
+    {
+      "id": "sales-top-5-customers-by-revenue",
+      "tag": "sales",
+      "question": "Top 5 customers by revenue",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": ["customer"],
+        "time_grain": null,
+        "filters": [],
+        "order_by": [{ "field": "revenue", "direction": "desc" }],
+        "limit": 5,
+        "result": { "row_count": 5, "min_rows": 5 }
+      },
+      "notes": "Ranking with a two-hop customer dimension."
+    },
+    {
+      "id": "sales-top-10-products-by-units",
+      "tag": "sales",
+      "question": "Top 10 products by units sold",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["units_sold"],
+        "dimensions": ["product"],
+        "time_grain": null,
+        "filters": [],
+        "order_by": [{ "field": "units_sold", "direction": "desc" }],
+        "limit": 10,
+        "result": { "row_count": 10, "min_rows": 10 }
+      },
+      "notes": "Ranking on a filtered metric."
+    },
+    {
+      "id": "sales-units-by-product-category",
+      "tag": "sales",
+      "question": "Units sold by product category",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["units_sold"],
+        "dimensions": ["product_category"],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "units_sold also excludes cancelled orders."
+    },
+    {
+      "id": "sales-orders-by-status",
+      "tag": "sales",
+      "question": "How many orders are there by status?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "orders",
+        "metrics": ["orders"],
+        "dimensions": ["order_status"],
+        "time_grain": null,
+        "filters": [],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "order_status": "cancelled", "orders": 10 }]
+        }
+      },
+      "notes": "orders counts every status, including cancelled."
+    },
+    {
+      "id": "sales-cancelled-orders-last-12-months",
+      "tag": "sales",
+      "question": "How many orders were cancelled in the last 12 months?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "orders",
+        "metrics": ["cancelled_orders"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [{ "dimension": "order_date" }],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "The metric carries its own status filter."
+    },
+    {
+      "id": "sales-revenue-this-year",
+      "tag": "sales",
+      "question": "What is our revenue this year?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [{ "dimension": "order_date" }],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Relative range; boundary not graded in v0."
+    },
+    {
+      "id": "sales-monthly-revenue-2025",
+      "tag": "sales",
+      "question": "Monthly revenue in 2025",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": { "dimension": "order_date", "grain": "month" },
+        "filters": [{ "dimension": "order_date" }],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "order_date": "2025-01-01" }]
+        }
+      },
+      "notes": "Fixed range; operator and boundaries not graded in v0."
+    },
+    {
+      "id": "sales-gross-revenue",
+      "tag": "sales",
+      "question": "What was our gross revenue?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["gross_revenue"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "gross_revenue includes cancelled orders; revenue does not."
+    },
+    {
+      "id": "sales-products-by-category",
+      "tag": "sales",
+      "question": "How many products are there per category?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "products",
+        "metrics": ["product_count"],
+        "dimensions": ["product_category"],
+        "time_grain": null,
+        "filters": [],
+        "result": {
+          "min_rows": 1,
+          "includes": [{ "product_category": "Hardware", "product_count": 3 }]
+        }
+      },
+      "notes": "A different fact dataset with a local dimension."
+    },
+    {
+      "id": "tricky-ambiguous-revenue",
+      "tag": "tricky",
+      "question": "How much revenue did we make?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "revenue vs gross_revenue: net revenue is the default until 6.7 clarification."
+    },
+    {
+      "id": "tricky-unknown-dimension",
+      "tag": "tricky",
+      "question": "What is the average salary by job title?",
+      "expected": { "outcome": "failed" },
+      "notes": "job_title does not exist; the agent must fail safely, not invent SQL."
+    },
+    {
+      "id": "tricky-unreachable-dimension",
+      "tag": "tricky",
+      "question": "What is revenue by department?",
+      "expected": { "outcome": "failed" },
+      "notes": "department is not reachable from order_items."
+    },
+    {
+      "id": "tricky-wide-date-range",
+      "tag": "tricky",
+      "question": "Monthly revenue since 1990",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": { "dimension": "order_date", "grain": "month" },
+        "filters": [{ "dimension": "order_date" }],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "The range starts before the data; it must still compile and run."
+    },
+    {
+      "id": "tricky-out-of-scope",
+      "tag": "tricky",
+      "question": "What's the weather in Berlin?",
+      "expected": { "outcome": "out_of_scope" },
+      "notes": "No query should run."
+    },
+    {
+      "id": "tricky-empty-date-range",
+      "tag": "tricky",
+      "question": "What was our revenue in 2020?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": [],
+        "time_grain": null,
+        "filters": [{ "dimension": "order_date" }],
+        "result": { "min_rows": 1 }
+      },
+      "notes": "Data starts in 2024; an ungrouped aggregate still returns one row (with a NULL/0 sum), and the run must succeed."
+    },
+    {
+      "id": "tricky-unsupported-metric",
+      "tag": "tricky",
+      "question": "What is our average order value?",
+      "expected": { "outcome": "failed" },
+      "notes": "No AOV metric, and QuerySpec v0 cannot divide two metrics."
+    },
+    {
+      "id": "tricky-customer-filter",
+      "tag": "tricky",
+      "question": "How much revenue did Coho Vineyard generate?",
+      "expected": {
+        "outcome": "answered",
+        "dataset": "order_items",
+        "metrics": ["revenue"],
+        "dimensions": ["customer"],
+        "time_grain": null,
+        "filters": [{ "dimension": "customer" }],
+        "result": { "row_count": 1, "min_rows": 1 }
+      },
+      "notes": "Text filter on a two-hop parent. Grouping keeps a wrong name visible as zero rows."
+    }
+  ]
+}

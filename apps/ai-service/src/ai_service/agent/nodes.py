@@ -18,10 +18,16 @@ from ai_service.agent import prompts
 from ai_service.agent.state import (
     AgentState,
     AnswerProse,
+    Clarification,
     ContextSelection,
     IntentDecision,
 )
-from ai_service.core_api import CoreApiClient, CoreApiError, CoreApiRejected
+from ai_service.core_api import (
+    CoreApiClient,
+    CoreApiError,
+    CoreApiRejected,
+    ModelContext,
+)
 from ai_service.llm import LlmClient, LlmError
 from ai_service.spec import QuerySpec
 
@@ -104,6 +110,19 @@ class AgentNodes:
             return {
                 "outcome": "failed",
                 "error": f'The model picked an unknown dataset "{dataset}".',
+                "usages": [result.usage],
+                "trace": ["select_context"],
+            }
+
+        clarification = self._clarification(result.data.clarification, context, dataset)
+        if clarification is not None:
+            # Ask instead of guessing: no spec, no query, no rows (6.7).
+            return {
+                "context": context,
+                "fact_dataset": dataset,
+                "selection_reason": result.data.reason,
+                "clarification": clarification,
+                "outcome": "needs_clarification",
                 "usages": [result.usage],
                 "trace": ["select_context"],
             }
@@ -235,6 +254,23 @@ class AgentNodes:
                 "trace": ["compose_answer"],
             }
 
+        if state.get("outcome") == "needs_clarification":
+            # The question and the options were decided in `select_context`;
+            # a second LLM call would only reword them.
+            clarification = state.get("clarification")
+            context = state.get("context")
+            if clarification is not None and context is not None:
+                answer = prompts.clarification_answer(context, state["fact_dataset"], clarification)
+            elif clarification is not None:
+                answer = clarification.question
+            else:
+                answer = prompts.CLARIFICATION_QUESTION
+            return {
+                "answer": answer,
+                "outcome": "needs_clarification",
+                "trace": ["compose_answer"],
+            }
+
         if state.get("intent") == "out_of_scope":
             return {
                 "answer": prompts.OUT_OF_SCOPE_ANSWER,
@@ -282,6 +318,42 @@ class AgentNodes:
             "usages": [composed.usage],
             "trace": ["compose_answer"],
         }
+
+    @staticmethod
+    def _clarification(
+        clarification: Clarification | None,
+        context: ModelContext,
+        dataset: str,
+    ) -> Clarification | None:
+        """Keep only real, reachable options; drop the ask if fewer than two survive.
+
+        The model picks names from the prompt, but the prompt is text, not a
+        schema. Validating here means a hallucinated option can never reach the
+        user and a malformed ask degrades to the normal path instead of failing.
+        """
+        if clarification is None:
+            return None
+
+        datasets = {item.name: item for item in context.datasets}
+        reachable = prompts.reachable_datasets(context, dataset)
+        known = {
+            item.name
+            for name in reachable
+            for item in (*datasets[name].metrics, *datasets[name].dimensions)
+        }
+
+        options: list[str] = []
+        for option in clarification.options:
+            name = option.strip()
+            if name in known and name not in options:
+                options.append(name)
+
+        if len(options) < 2:
+            logger.warning("agent_clarification_dropped options=%d", len(options))
+            return None
+
+        question = clarification.question.strip()[:200] or prompts.CLARIFICATION_QUESTION
+        return Clarification(question=question, options=options)
 
     @staticmethod
     def _failed(node: str, exc: Exception) -> dict[str, Any]:

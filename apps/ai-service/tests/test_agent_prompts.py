@@ -9,6 +9,7 @@ system message.
 from datetime import date
 
 from ai_service.agent import prompts
+from ai_service.agent.state import Clarification
 from ai_service.spec import QueryResult, QuerySpec, ResultColumn
 from tests.fakes import acme_context, headcount_result
 
@@ -87,6 +88,36 @@ def test_user_message_carries_the_question_and_the_system_does_not() -> None:
     assert question in user
     assert question not in prompts.SELECT_SYSTEM
     assert question not in prompts.DRAFT_SYSTEM
+
+
+# --- 6.7: clarification ----------------------------------------------------
+
+
+def test_clarification_answer_uses_the_model_own_descriptions() -> None:
+    text = prompts.clarification_answer(
+        acme_context(),
+        "orders",
+        Clarification(question="Which revenue?", options=["revenue", "gross_revenue"]),
+    )
+
+    assert text.startswith("Which revenue?")
+    assert "- revenue — Non-cancelled revenue." in text
+    assert "- gross_revenue — Revenue including cancelled orders." in text
+
+
+def test_clarification_answer_clips_long_descriptions() -> None:
+    context = acme_context()
+    orders = next(dataset for dataset in context.datasets if dataset.name == "orders")
+    orders.metrics[0].description = "x" * 400
+
+    text = prompts.clarification_answer(
+        context,
+        "orders",
+        Clarification(question="Which one?", options=["revenue", "gross_revenue"]),
+    )
+
+    assert "x" * prompts.CLARIFICATION_DESCRIPTION_CHARS in text
+    assert "x" * (prompts.CLARIFICATION_DESCRIPTION_CHARS + 1) not in text
 
 
 # --- 6.3b: repair and answer prompts --------------------------------------

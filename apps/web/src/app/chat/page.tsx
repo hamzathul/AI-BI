@@ -96,7 +96,12 @@ export default function ChatPage() {
       ) : (
         <div className="space-y-6">
           {turns.map((turn) => (
-            <ChatTurnView key={turn.id} turn={turn} />
+            <ChatTurnView
+              key={turn.id}
+              turn={turn}
+              onAsk={(question) => void ask(question)}
+              disabled={isStreaming}
+            />
           ))}
         </div>
       )}

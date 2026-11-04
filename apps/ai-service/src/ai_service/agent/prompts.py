@@ -12,6 +12,7 @@ import json
 from datetime import date
 from typing import Any
 
+from ai_service.agent.state import Clarification
 from ai_service.core_api import ContextDataset, ContextDimension, ModelContext
 from ai_service.spec import QueryResult, QuerySpec
 
@@ -29,7 +30,16 @@ SELECT_SYSTEM = (
     "model and a question, choose the single fact dataset the question should be "
     "answered from.\n"
     "The fact dataset is the one whose metrics the question asks about. Dimensions "
-    "may come from parent datasets reachable through joins. Never invent names."
+    "may come from parent datasets reachable through joins. Never invent names.\n"
+    "Most questions are answerable as asked: answer those directly. Ask for "
+    "clarification only when the question genuinely fits two or more listed "
+    "measures or dimensions and picking one would be a guess — for example when it "
+    'says "revenue" and both `revenue` and `gross_revenue` are listed, or when it '
+    "names no measure at all. To ask, set `clarification` with one short question "
+    "(max 200 characters) and 2-4 exact names from the catalog. Otherwise leave "
+    "`clarification` null.\n"
+    "Never ask for confirmation on a clear question, and never offer a name that "
+    "is not in the catalog."
 )
 
 DRAFT_SYSTEM = (
@@ -58,6 +68,12 @@ FALLBACK_ANSWER = (
     "Here is the result from the connected data. "
     "I couldn't summarize it, but the rows below are complete."
 )
+
+CLARIFICATION_QUESTION = "Which one did you mean?"
+"""Fallback wording when the model's own clarifying question is blank (6.7)."""
+
+CLARIFICATION_DESCRIPTION_CHARS = 120
+"""A metric description is read in a chat bubble, not in full."""
 
 REPAIR_SYSTEM = (
     "You repair a QuerySpec that a business-intelligence backend rejected. "
@@ -147,6 +163,30 @@ def reachable_datasets(context: ModelContext, base: str) -> set[str]:
                 reachable.add(join.target.dataset)
                 changed = True
     return reachable
+
+
+def clarification_answer(context: ModelContext, base: str, clarification: Clarification) -> str:
+    """Deterministic clarification text, built from the model's own descriptions.
+
+    The LLM wrote the question; the option list and every word describing an
+    option come from the saved model, so the user never sees an invented name.
+    """
+    lines = [clarification.question, ""]
+    for option in clarification.options:
+        detail = _option_description(context, base, option)
+        lines.append(f"- {option} — {detail}" if detail else f"- {option}")
+    return "\n".join(lines)
+
+
+def _option_description(context: ModelContext, base: str, name: str) -> str:
+    """The description of a metric or dimension, clipped for a chat bubble."""
+    datasets = {dataset.name: dataset for dataset in context.datasets}
+    for dataset_name in sorted(reachable_datasets(context, base)):
+        dataset = datasets[dataset_name]
+        for item in (*dataset.metrics, *dataset.dimensions):
+            if item.name == name:
+                return (item.description or "")[:CLARIFICATION_DESCRIPTION_CHARS]
+    return ""
 
 
 def render_dataset_context(context: ModelContext, base: str, today: date) -> str:

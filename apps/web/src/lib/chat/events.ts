@@ -44,13 +44,23 @@ export interface ChatUsage {
   costUsd?: number | null;
 }
 
-export type ChatOutcome = "answered" | "out_of_scope" | "failed";
+export type ChatOutcome = "answered" | "out_of_scope" | "failed" | "needs_clarification";
+
+/**
+ * The question the agent asked instead of guessing (6.7). `options` are real
+ * metric or dimension names, validated by ai-service before they reach here.
+ */
+export interface ChatClarification {
+  question: string;
+  options: string[];
+}
 
 export interface ChatAnswer {
   type: "answer";
   question: string;
   outcome: ChatOutcome;
   answer: string;
+  clarification?: ChatClarification | null;
   spec?: QuerySpec | null;
   result?: ChatQueryResult | null;
   repairs?: number;
@@ -67,10 +77,25 @@ export interface ChatError {
 export type ChatEvent = ChatStep | ChatAnswer | ChatError;
 
 const STEP_STATUSES: readonly StepStatus[] = ["done", "error", "retry"];
-const OUTCOMES: readonly ChatOutcome[] = ["answered", "out_of_scope", "failed"];
+const OUTCOMES: readonly ChatOutcome[] = [
+  "answered",
+  "out_of_scope",
+  "failed",
+  "needs_clarification",
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isClarification(value: unknown): value is ChatClarification {
+  return (
+    isRecord(value) &&
+    typeof value.question === "string" &&
+    Array.isArray(value.options) &&
+    value.options.length >= 2 &&
+    value.options.every((option) => typeof option === "string")
+  );
 }
 
 function isStep(value: unknown): value is ChatStep {
@@ -86,10 +111,16 @@ function isStep(value: unknown): value is ChatStep {
 function isAnswer(value: unknown): value is ChatAnswer {
   if (!isRecord(value)) return false;
 
+  const clarificationOk =
+    value.clarification === undefined ||
+    value.clarification === null ||
+    isClarification(value.clarification);
+
   return (
     typeof value.question === "string" &&
     OUTCOMES.includes(value.outcome as ChatOutcome) &&
-    typeof value.answer === "string"
+    typeof value.answer === "string" &&
+    clarificationOk
   );
 }
 

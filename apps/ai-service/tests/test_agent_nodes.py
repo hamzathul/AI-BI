@@ -9,7 +9,12 @@ from datetime import date
 
 from ai_service.agent import prompts
 from ai_service.agent.nodes import AgentDeps, AgentNodes
-from ai_service.agent.state import AnswerProse, ContextSelection, IntentDecision
+from ai_service.agent.state import (
+    AnswerProse,
+    Clarification,
+    ContextSelection,
+    IntentDecision,
+)
 from ai_service.core_api import CoreApiRejected, CoreApiUnavailable
 from ai_service.llm import LlmBadOutput, LlmNotConfigured, LlmUnavailable
 from ai_service.spec import OrderBy, QueryResult, QuerySpec, ResultColumn
@@ -104,6 +109,105 @@ async def test_select_context_core_api_failure_never_calls_the_llm() -> None:
     assert update["outcome"] == "failed"
     assert "No semantic model is saved" in update["error"]
     assert update["trace"] == ["select_context"]
+    assert llm.calls == []
+
+
+# --- 6.7: clarification ----------------------------------------------------
+
+
+async def test_select_context_returns_a_validated_clarification() -> None:
+    llm = FakeLlm(
+        {
+            "ContextSelection": [
+                ContextSelection(
+                    dataset="orders",
+                    reason="revenue lives here",
+                    clarification=Clarification(
+                        question="Which revenue?",
+                        options=["revenue", "gross_revenue", "made_up", "revenue"],
+                    ),
+                )
+            ]
+        }
+    )
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.select_context({"question": "What was our revenue?"})
+
+    assert update["outcome"] == "needs_clarification"
+    assert update["fact_dataset"] == "orders"
+    assert update["clarification"].options == ["revenue", "gross_revenue"]
+    assert update["clarification"].question == "Which revenue?"
+    assert "spec" not in update
+    assert len(update["usages"]) == 1
+
+
+async def test_select_context_drops_an_under_specified_clarification() -> None:
+    llm = FakeLlm(
+        {
+            "ContextSelection": [
+                ContextSelection(
+                    dataset="orders",
+                    reason="revenue",
+                    clarification=Clarification(
+                        question="Which revenue?", options=["revenue", "made_up"]
+                    ),
+                )
+            ]
+        }
+    )
+
+    update = await AgentNodes(_deps(llm)).select_context({"question": "Revenue?"})
+
+    assert "clarification" not in update
+    assert "outcome" not in update
+    assert update["fact_dataset"] == "orders"
+
+
+async def test_select_context_ignores_options_outside_the_fact_neighbourhood() -> None:
+    llm = FakeLlm(
+        {
+            "ContextSelection": [
+                ContextSelection(
+                    dataset="employees",
+                    reason="headcount",
+                    clarification=Clarification(
+                        question="Which one?",
+                        options=["avg_salary", "revenue"],
+                    ),
+                )
+            ]
+        }
+    )
+
+    update = await AgentNodes(_deps(llm)).select_context({"question": "How are we doing?"})
+
+    # `revenue` belongs to `orders`, which `employees` cannot reach, so only one
+    # real option remains and the agent answers normally instead of asking.
+    assert "clarification" not in update
+    assert update["fact_dataset"] == "employees"
+
+
+async def test_compose_answer_returns_the_clarification_without_an_llm_call() -> None:
+    llm = FakeLlm({})
+    nodes = AgentNodes(_deps(llm))
+
+    update = await nodes.compose_answer(
+        {
+            "question": "What was our revenue?",
+            "context": acme_context(),
+            "fact_dataset": "orders",
+            "clarification": Clarification(
+                question="Which revenue?", options=["revenue", "gross_revenue"]
+            ),
+            "outcome": "needs_clarification",
+        }
+    )
+
+    assert update["outcome"] == "needs_clarification"
+    assert update["answer"].startswith("Which revenue?")
+    assert "- revenue — Non-cancelled revenue." in update["answer"]
+    assert "- gross_revenue — Revenue including cancelled orders." in update["answer"]
     assert llm.calls == []
 
 

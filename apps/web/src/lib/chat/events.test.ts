@@ -41,6 +41,40 @@ describe("parseChatEvent", () => {
     expect(event.usage?.totalTokens).toBe(60);
   });
 
+  it("parses a clarification answer with its real options", () => {
+    const event = parseChatEvent(
+      JSON.stringify({
+        type: "answer",
+        question: "What was our revenue?",
+        outcome: "needs_clarification",
+        answer: "Which revenue?",
+        clarification: {
+          question: "Which revenue?",
+          options: ["revenue", "gross_revenue"],
+        },
+      }),
+    );
+
+    expect(event?.type).toBe("answer");
+    if (event?.type !== "answer") throw new Error("expected an answer");
+    expect(event.outcome).toBe("needs_clarification");
+    expect(event.clarification?.options).toEqual(["revenue", "gross_revenue"]);
+  });
+
+  it("rejects a clarification whose options are not a list of names", () => {
+    const event = parseChatEvent(
+      JSON.stringify({
+        type: "answer",
+        question: "q",
+        outcome: "needs_clarification",
+        answer: "a",
+        clarification: { question: "Which?", options: ["only_one"] },
+      }),
+    );
+
+    expect(event).toBeNull();
+  });
+
   it("parses an error frame and keeps the message", () => {
     expect(parseChatEvent('{"type":"error","message":"stopped"}')).toEqual({
       type: "error",

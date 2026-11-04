@@ -68,8 +68,14 @@ def step_detail(node: str, update: dict[str, Any]) -> dict[str, Any]:
         return {"intent": intent} if intent else {}
 
     if node == "select_context":
+        detail: dict[str, Any] = {}
         dataset = update.get("fact_dataset")
-        return {"dataset": dataset} if dataset else {}
+        if dataset:
+            detail["dataset"] = dataset
+        clarification = update.get("clarification")
+        if clarification is not None:
+            detail["options"] = list(clarification.options)
+        return detail
 
     if node in {"draft_spec", "repair_spec"}:
         spec = update.get("spec")

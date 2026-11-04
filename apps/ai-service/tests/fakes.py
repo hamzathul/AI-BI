@@ -224,7 +224,14 @@ def acme_context() -> ModelContext:
                                 dimension="status", operator="neq", value="cancelled"
                             )
                         ],
-                    )
+                    ),
+                    ContextMetric(
+                        name="gross_revenue",
+                        agg="sum",
+                        expression="total_amount",
+                        description="Revenue including cancelled orders.",
+                        filters=[],
+                    ),
                 ],
             ),
             ContextDataset(

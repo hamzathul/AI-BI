@@ -63,7 +63,10 @@ def _after_classify(state: AgentState) -> str:
 
 
 def _after_select(state: AgentState) -> str:
-    return "compose_answer" if state.get("outcome") == "failed" else "draft_spec"
+    """A failed or ambiguous selection skips drafting and querying entirely."""
+    if state.get("outcome") in {"failed", "needs_clarification"}:
+        return "compose_answer"
+    return "draft_spec"
 
 
 def _after_draft(state: AgentState) -> str:
@@ -101,6 +104,7 @@ def _answer_from_state(question: str, final: dict[str, Any]) -> AgentAnswer:
         question=question,
         outcome=outcome,
         answer=final.get("answer", ""),
+        clarification=final.get("clarification"),
         spec=final.get("spec"),
         result=result,
         repairs=final.get("repairs", 0),

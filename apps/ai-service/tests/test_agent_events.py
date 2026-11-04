@@ -10,6 +10,7 @@ from ai_service.agent.events import (
     step_event,
     step_status,
 )
+from ai_service.agent.state import Clarification
 from ai_service.spec import QueryResult, QuerySpec, ResultColumn
 from tests.fakes import acme_context, headcount_result
 
@@ -28,6 +29,19 @@ def test_step_detail_is_a_whitelist_not_a_state_dump() -> None:
 
     assert event.detail == {"dataset": "employees"}
     assert "context" not in event.model_dump()
+
+
+def test_select_context_detail_carries_options_only_when_it_asks() -> None:
+    clarification = Clarification(question="Which revenue?", options=["revenue", "gross_revenue"])
+
+    asking = step_event(
+        "select_context",
+        {"fact_dataset": "orders", "clarification": clarification},
+    )
+    answering = step_event("select_context", {"fact_dataset": "orders"})
+
+    assert asking.detail == {"dataset": "orders", "options": ["revenue", "gross_revenue"]}
+    assert answering.detail == {"dataset": "orders"}
 
 
 def test_validate_detail_reports_rows_or_the_compiler_message() -> None:

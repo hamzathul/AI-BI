@@ -11,6 +11,7 @@ import pytest
 from ai_service.agent import Agent, AgentDeps, prompts
 from ai_service.agent.state import (
     AnswerProse,
+    Clarification,
     ContextSelection,
     IntentDecision,
 )
@@ -84,6 +85,38 @@ async def test_happy_path_executes_and_answers_with_four_llm_calls() -> None:
         "QuerySpec",
         "AnswerProse",
     ]
+
+
+async def test_an_ambiguous_question_asks_instead_of_querying() -> None:
+    llm = FakeLlm(
+        {
+            "IntentDecision": [IntentDecision(intent="data_question", reason="asks for revenue")],
+            "ContextSelection": [
+                ContextSelection(
+                    dataset="orders",
+                    reason="revenue lives here",
+                    clarification=Clarification(
+                        question="Which revenue should I use?",
+                        options=["revenue", "gross_revenue"],
+                    ),
+                )
+            ],
+        }
+    )
+    core = FakeCoreApi(acme_context())
+
+    answer = await _agent(llm, core).run("What was our revenue?")
+
+    assert answer.outcome == "needs_clarification"
+    assert answer.spec is None
+    assert answer.result is None
+    assert answer.clarification is not None
+    assert answer.clarification.options == ["revenue", "gross_revenue"]
+    assert "Which revenue should I use?" in answer.answer
+    assert core.executed == []
+    assert answer.trace == ["classify_intent", "select_context", "compose_answer"]
+    assert [call["schema"] for call in llm.calls] == ["IntentDecision", "ContextSelection"]
+    assert answer.usage.calls == 2
 
 
 async def test_out_of_scope_short_circuits_before_context() -> None:

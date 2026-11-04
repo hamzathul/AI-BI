@@ -3,6 +3,8 @@
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { clarificationFollowUp } from "@/lib/chat/clarify";
 import type { ChatAnswer } from "@/lib/chat/events";
 import type { ChatTurn } from "@/lib/chat/state";
 import { AnswerChart } from "./answer-chart";
@@ -32,7 +34,15 @@ function AnswerMeta({ answer }: { answer: ChatAnswer }) {
   );
 }
 
-function AnswerBody({ answer }: { answer: ChatAnswer }) {
+function AnswerBody({
+  answer,
+  onAsk,
+  disabled,
+}: {
+  answer: ChatAnswer;
+  onAsk?: (question: string) => void;
+  disabled?: boolean;
+}) {
   if (answer.outcome === "failed") {
     return (
       <Alert variant="destructive">
@@ -40,6 +50,34 @@ function AnswerBody({ answer }: { answer: ChatAnswer }) {
         <AlertTitle>{answer.answer}</AlertTitle>
         {answer.error ? <AlertDescription>{answer.error}</AlertDescription> : null}
       </Alert>
+    );
+  }
+
+  if (answer.outcome === "needs_clarification") {
+    const options = answer.clarification?.options ?? [];
+
+    return (
+      <div className="space-y-3">
+        <Badge variant="secondary">One detail needed</Badge>
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">{answer.answer}</p>
+        {options.length > 0 && onAsk ? (
+          <div className="flex flex-wrap gap-2">
+            {options.map((option) => (
+              <Button
+                key={option}
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={() =>
+                  onAsk(clarificationFollowUp(answer.question, option))
+                }
+              >
+                Use {option}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     );
   }
 
@@ -66,7 +104,15 @@ function AnswerBody({ answer }: { answer: ChatAnswer }) {
  * One question and everything that came back. The question stays in the
  * transcript even when the run fails, so the user can see what was asked.
  */
-export function ChatTurnView({ turn }: { turn: ChatTurn }) {
+export function ChatTurnView({
+  turn,
+  onAsk,
+  disabled,
+}: {
+  turn: ChatTurn;
+  onAsk?: (question: string) => void;
+  disabled?: boolean;
+}) {
   return (
     <article className="space-y-3" aria-label={`Question: ${turn.question}`}>
       <div className="flex justify-end">
@@ -78,7 +124,9 @@ export function ChatTurnView({ turn }: { turn: ChatTurn }) {
       <div className="space-y-3 rounded-2xl rounded-tl-sm border bg-card px-4 py-3">
         <StepTimeline steps={turn.steps} streaming={turn.status === "streaming"} />
 
-        {turn.answer ? <AnswerBody answer={turn.answer} /> : null}
+        {turn.answer ? (
+          <AnswerBody answer={turn.answer} onAsk={onAsk} disabled={disabled} />
+        ) : null}
 
         {!turn.answer && turn.status === "error" ? (
           <Alert variant="destructive">

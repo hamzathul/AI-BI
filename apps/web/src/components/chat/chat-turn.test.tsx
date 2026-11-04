@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatAnswer, ChatQueryResult } from "@/lib/chat/events";
 import type { ChatTurn } from "@/lib/chat/state";
@@ -126,5 +127,58 @@ describe("ChatTurnView", () => {
 
     expect(screen.queryByTestId("echart")).not.toBeInTheDocument();
     expect(screen.getByText("Out of scope")).toBeInTheDocument();
+  });
+
+  it("asks instead of charting, and turns a choice into a new question", async () => {
+    const onAsk = vi.fn();
+    render(
+      <ChatTurnView
+        onAsk={onAsk}
+        turn={turn({
+          type: "answer",
+          question: "What was our revenue?",
+          outcome: "needs_clarification",
+          answer:
+            "Which revenue?\n\n- revenue — Non-cancelled revenue.\n- gross_revenue — Revenue including cancelled orders.",
+          clarification: {
+            question: "Which revenue?",
+            options: ["revenue", "gross_revenue"],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("One detail needed")).toBeInTheDocument();
+    expect(screen.queryByTestId("echart")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Use gross_revenue" }),
+    );
+
+    expect(onAsk).toHaveBeenCalledWith(
+      "What was our revenue? (use gross_revenue)",
+    );
+  });
+
+  it("disables clarification chips while another answer streams", () => {
+    render(
+      <ChatTurnView
+        disabled
+        onAsk={vi.fn()}
+        turn={turn({
+          type: "answer",
+          question: "What was our revenue?",
+          outcome: "needs_clarification",
+          answer: "Which revenue?",
+          clarification: {
+            question: "Which revenue?",
+            options: ["revenue", "gross_revenue"],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Use revenue" })).toBeDisabled();
   });
 });
